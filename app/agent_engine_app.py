@@ -30,9 +30,9 @@ from vertexai import agent_engines
 from vertexai.preview.reasoning_engines import AdkApp
 
 from app.agent import root_agent
-from app.utils.gcs import create_bucket_if_not_exists
-from app.utils.tracing import CloudTraceLoggingSpanExporter
-from app.utils.typing import Feedback
+from utils.gcs import create_bucket_if_not_exists
+from utils.tracing import CloudTraceLoggingSpanExporter
+from utils.typing import Feedback
 
 
 class AgentEngineApp(AdkApp):
@@ -108,7 +108,7 @@ def deploy_agent_engine_app(
     agent_config = {
         "agent_engine": agent_engine,
         "display_name": agent_name,
-        "description": "A base ReAct agent built with Google's Agent Development Kit (ADK)",
+        "description": "ADK RAG agent for document retrieval and Q&A. Includes a data pipeline for ingesting and indexing documents into Vertex AI Search or Vector Search.",
         "extra_packages": extra_packages,
         "env_vars": env_vars,
     }
@@ -151,8 +151,8 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--location",
-        default="us-west1",
-        help="GCP region (defaults to us-west1)",
+        default="us-central1",
+        help="GCP region (defaults to us-central1)",
     )
     parser.add_argument(
         "--agent-name",

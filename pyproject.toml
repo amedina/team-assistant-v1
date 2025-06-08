@@ -9,7 +9,32 @@ dependencies = [
     "google-adk~=1.1.0",
     "opentelemetry-exporter-gcp-trace~=1.9.0",
     "google-cloud-logging~=3.11.4",
-    "google-cloud-aiplatform[evaluation,agent-engines]~=1.95.1"
+    "google-cloud-aiplatform[evaluation,agent-engines]~=1.95.1",
+    # Data Processing System Dependencies
+    # Core async and web framework dependencies
+    "httpx>=0.24.0",
+    "aiofiles>=23.0.0",
+    # Google Cloud dependencies (many are included in google-cloud-aiplatform)
+    "google-cloud-secret-manager>=2.0.0",
+    "google-cloud-storage>=2.0.0",
+    # Database dependencies
+    "asyncpg>=0.28.0",
+    "cloud-sql-python-connector[asyncpg]>=1.4.0",
+    "neo4j>=5.0.0",
+    # Text processing and NLP
+    "spacy>=3.4.0",
+    "nltk>=3.8.0",
+    "beautifulsoup4>=4.12.0",
+    "lxml>=4.9.0",
+    "langchain>=0.1.0",
+    "langchain-text-splitters>=0.0.1",
+    # Configuration and utilities
+    "pyyaml>=6.0",
+    "python-dotenv>=1.0.0",
+    # Data processing
+    "numpy>=1.24.0",
+    "pandas>=2.0.0",
+    "en-core-web-sm",
 ]
 
 requires-python = ">=3.10,<3.13"
@@ -87,4 +112,7 @@ pythonpath = "."
 asyncio_default_fixture_loop_scope = "function"
 
 [tool.hatch.build.targets.wheel]
-packages = ["app","frontend"]
+packages = ["app","frontend","data_ingestion","config","utils"]
+
+[tool.uv.sources]
+en-core-web-sm = { url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" }

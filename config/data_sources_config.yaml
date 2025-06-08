@@ -1,0 +1,179 @@
+version: "1.0"
+
+project_config:
+  # Google Cloud Project and Location
+  google_cloud_project: "ps-agent-sandbox"
+  google_cloud_location: "us-west1" 
+# Pipeline configuration - TEMPLATE FILE (replace with actual values)
+
+pipeline_config:
+  # 🔥 Vertex AI vector index and gs bucket
+  vector_search_index: "2585233311878086656"
+  vector_search_endpoint: "projects/267266051209/locations/us-west1/indexEndpoints/6568702366659379200"  
+  vector_search_bucket: "gs://gs-team-assistant-cm-v1"
+  chunk_size: 800
+  chunk_overlap: 100
+  embedding_model: "text-embedding-005"
+  batch_size: 100
+
+  #PostgreSQL DB
+  instance-connection-name: "ps-agent-sandbox:us-west1:team-assistance-cm-v1"
+  db_name: "postgres"
+  db_user: "postgres"
+  db_pass: "AMkk2012;AMkk2012"
+
+  # Neo4j configuration
+  neo4j_uri: "neo4j://nyx.gagan.pro"
+  neo4j_user: "neo4j"
+  neo4j_password: ""
+  batch_size: 100
+
+  # Knowledge Graph (optional)
+  enable_knowledge_graph: true
+  
+  # Change detection (optional)
+  enable_change_detection: true
+  
+  # Pipeline settings
+  default_strategy: "smart_sync"
+  batch_window_minutes: 5
+  max_concurrent_jobs: 3
+  retry_attempts: 3
+
+# Data sources - TEMPLATE (update with your sources)
+data_sources:
+  # PSAT respository
+  - source_id: "ps-analysis-tool"
+    source_type: "github_repo"
+    access_level: "global"
+    description: "PSAT GitHub repository"
+    enabled: true
+    config:
+      repository: "GoogleChromeLabs/ps-analysis-tool"
+      branch: "main"
+      paths: 
+        - "README.md"
+      exclude_patterns: 
+        - ".git/"
+        - "node_modules/"
+      file_extensions:
+        - ".md"
+        - ".txt"
+        - ".pdf"
+      # ✅ Uses Secret Manager (secure)
+      access_token: "projects/ps-agent-sandbox/secrets/github-token/versions/latest"
+  
+  # PSAT Wiki respository
+  - source_id: "ps-analysis-tool-wiki"
+    source_type: "github_repo"
+    access_level: "global"
+    description: "PSAT Wiki GitHub repository"
+    enabled: true
+    config:
+      repository: "rtCamp/ps-analysis-tool-wiki"
+      branch: "master"
+      paths: []  # Empty array means include all paths
+      exclude_patterns: 
+        - ".git/"
+        - "node_modules/"
+        - "images/"  # Exclude images directory
+        - "_Sidebar.md"  # Exclude sidebar file
+      file_extensions:
+        - ".md"
+        - ".txt"
+        - ".pdf"
+      # ✅ Uses Secret Manager (secure)
+      access_token: "projects/ps-agent-sandbox/secrets/github-token/versions/latest"
+
+  # Google Drive Folder Example  
+  - source_id: "devrel-assistance-folder"
+    source_type: "drive_folder"
+    access_level: "global"
+    description: "DevRel Assistance Google Drive folder"
+    enabled: true
+    config:
+      folder_id: "1ptFZLZApmOZw6NWpmxoEGEAKwBaBhIcm"
+      include_subfolders: true
+      file_types:
+        - "google_doc"
+        - "google_slide" 
+        - "google_sheet"  # Added Google Sheets support
+        - "pdf"
+        - "text"
+      exclude_patterns:
+        - "temp_*"
+        - "draft_*"
+        - "archive/"
+      max_file_size_mb: 50
+      # Uses Application Default Credentials (ADC) - no credentials_path needed
+
+  # Web Source
+  - source_id: "privacy-sandbox-docs"
+    source_type: "web_source" 
+    access_level: "global"
+    description: "Privacy Sandbox documentation website"
+    enabled: true  # Set to true when ready to use
+    config:
+      urls:
+        - "https://privacysandbox.google.com/"
+      crawl_mode: "same_domain"  # single_page, same_domain, or sitemap
+      max_pages: 25
+      max_depth: 2
+      delay_between_requests: 1.0
+      follow_links: true
+      timeout: 30
+      selectors:
+        content: "main, .content, article"  # CSS selectors for main content
+        title: "h1, title"  # CSS selector for page title
+      exclude_selectors:
+        - "nav"
+        - "footer" 
+        - ".sidebar"
+        - ".breadcrumb"
+        - ".cookie-banner"
+      allowed_content_types:
+        - "text/html"
+      user_agent: "DevRel-Assistant/1.0 (Privacy Sandbox Documentation Crawler)"
+
+  - source_id: "web-dev-blog"
+    source_type: "web_source"
+    access_level: "global" 
+    description: "Web.dev blog posts via sitemap"
+    enabled: false  # Set to true when ready to use
+    config:
+      urls:
+        - "https://web.dev/sitemap.xml"
+      crawl_mode: "sitemap"
+      max_pages: 50
+      delay_between_requests: 0.5
+      selectors:
+        content: "article, .post-content, main"
+        title: "h1.headline, .post-title, title"
+      exclude_selectors:
+        - ".header"
+        - ".navigation"
+        - ".sidebar"
+        - ".footer"
+        - ".comments"
+        - ".related-posts"
+      user_agent: "DevRel-Assistant/1.0 (Web.dev Content Crawler)"
+
+  - source_id: "single-page-example"
+    source_type: "web_source"
+    access_level: "global"
+    description: "Single web page example"
+    enabled: true  # Set to true when ready to use
+    config:
+      urls:
+        - "https://developer.chrome.com/docs/privacy-sandbox/overview/"
+        - "https://developer.chrome.com/docs/privacy-sandbox/glossary/"
+      crawl_mode: "single_page"
+      delay_between_requests: 1.0
+      selectors:
+        content: "main .content, article"
+        title: "h1"
+      exclude_selectors:
+        - "nav"
+        - "aside"
+        - ".page-navigation"
+      user_agent: "DevRel-Assistant/1.0 (Documentation Reader)" 

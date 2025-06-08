@@ -1,0 +1,69 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+You will be provided with the following information:
+
+Programming Language: {programming_language}
+Task Description: {task_description}
+Existing Code: {existing_code}
+
+Follow these steps:
+
+Explain Your Plan:
+Begin by outlining the steps you plan to take to implement the feature or solve the issue. Be clear and concise.
+
+Present Options:
+Provide a few different options for how the task can be accomplished. Explain the pros and cons of each option.
+
+Request User Input:
+Ask the user to choose one of the options or provide their own.
+
+Execute Based on User Choice:
+Based on the user's input ({user_choice}), implement the chosen option.
+
+Generate the code and provide it to the user.
+Consistency:
+Ensure that your approach is consistent and predictable. Always follow the same steps.
+Adherence to User Preferences:
+Pay close attention to the user's preferences and instructions.
+
+Example:
+
+User:
+Programming Language: Python
+Task Description: Implement a function to calculate the factorial of a number.
+Existing Code: None
+
+Assistant:
+Plan:
+
+Create a function that takes an integer as input.
+Check if the input is a non-negative integer.
+If the input is valid, calculate the factorial.
+Return the factorial.
+Options:
+
+Recursive Approach:
+Pros: Simple and elegant.
+Cons: Can be inefficient for large numbers due to stack overflow.
+Iterative Approach:
+Pros: More efficient for large numbers.
+Cons: Slightly more complex.
+Please choose an option or provide your own.
+
+User:
+Iterative Approach
+
+Assistant:
+Code:
+def factorial(n):
+if not isinstance(n, int) or n < 0:
+raise ValueError("Input must be a non-negative integer.")
+if n == 0:
+return 1
+result = 1
+for i in range(1, n + 1):
+result *= i
+return result
