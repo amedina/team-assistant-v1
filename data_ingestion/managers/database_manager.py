@@ -1,95 +1,119 @@
 """
-Database Manager for PostgreSQL operations.
-Handles document chunks metadata, source mapping, and ingestion tracking.
+Database Manager - Coordinator for PostgreSQL database operations.
+Implements the Manager-as-Coordinator pattern with shared resource management.
+
+This component acts as a facade that:
+- Manages shared database connections and schema
+- Coordinates between DatabaseIngestor and DatabaseRetriever
+- Provides unified interface for database operations
+- Handles connection lifecycle and health checks
 """
 
-import uuid
 import logging
 import asyncio
 from typing import List, Dict, Any, Optional, Tuple
-from dataclasses import dataclass
-from datetime import datetime
-import asyncpg
 from contextlib import asynccontextmanager
+from datetime import datetime
 from google.cloud.sql.connector import Connector
 
 from config.configuration import DatabaseConfig
+from ..models import (
+    ChunkData, ContextualChunk, EnrichedChunk, BatchOperationResult,
+    ComponentHealth, IngestionStatus
+)
+from ..ingestors.database_ingestor import DatabaseIngestor
+from ..retrievers.database_retriever import DatabaseRetriever
 
 logger = logging.getLogger(__name__)
 
-@dataclass
-class DocumentChunk:
-    """Document chunk data structure for database operations."""
-    chunk_uuid: str
-    source_type: str
-    source_identifier: str
-    chunk_text_summary: Optional[str] = None
-    chunk_metadata: Optional[Dict[str, Any]] = None
-    ingestion_timestamp: Optional[datetime] = None
-    source_last_modified_at: Optional[datetime] = None
-    source_content_hash: Optional[str] = None
-    last_indexed_at: Optional[datetime] = None
-    ingestion_status: Optional[str] = "pending"
-
-@dataclass
-class ChunkSearchResult:
-    """Result from chunk search in database."""
-    chunk_uuid: str
-    source_type: str
-    source_identifier: str
-    chunk_text_summary: Optional[str]
-    chunk_metadata: Dict[str, Any]
-    ingestion_timestamp: datetime
-    source_last_modified_at: Optional[datetime] = None
-    source_content_hash: Optional[str] = None
-    last_indexed_at: Optional[datetime] = None
-    ingestion_status: Optional[str] = None
 
 class DatabaseManager:
     """
-    Manager for PostgreSQL database operations.
+    Coordinator/Facade for PostgreSQL database operations.
     
     Responsibilities:
-    - Managing document chunks metadata
-    - Source identifier mapping
-    - Ingestion tracking and statistics
-    - Database schema management
+    - Managing shared database connections and schema
+    - Coordinating between ingestor and retriever components
+    - Providing unified interface for database operations
+    - Connection lifecycle management and health monitoring
     """
     
     def __init__(self, config: DatabaseConfig):
         self.config = config
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+        
+        # Shared resources
         self._connector: Optional[Connector] = None
         
-    async def initialize(self):
-        """Initialize database connection pool and schema using Cloud SQL Connector."""
+        # Specialized components (initialized after shared resources)
+        self.ingestor: Optional[DatabaseIngestor] = None
+        self.retriever: Optional[DatabaseRetriever] = None
+        
+        # Manager state
+        self._initialized = False
+        
+    async def initialize(self) -> bool:
+        """
+        Initialize shared database resources and component coordination.
+        
+        Returns:
+            True if initialization successful
+        """
         try:
-            # Initialize Cloud SQL Connector
-            self._connector = Connector()
+            self.logger.info("Initializing DatabaseManager and shared resources...")
             
-            # Test connection first
-            test_conn = await self._connector.connect_async(
-                instance_connection_string=self.config.instance_connection_name,
-                driver="asyncpg",
-                user=self.config.db_user,
-                password=self.config.db_pass,
-                db=self.config.db_name,
+            # Initialize shared resources
+            await self._initialize_shared_resources()
+            
+            # Initialize specialized components with shared resources
+            self.ingestor = DatabaseIngestor(
+                config=self.config,
+                connector=self._connector
             )
-            await test_conn.close()
             
-            self.logger.info("Cloud SQL connection test successful")
+            self.retriever = DatabaseRetriever(
+                config=self.config,
+                connector=self._connector
+            )
             
-            # Note: We'll create connections on-demand rather than using a pool
-            # This is simpler with the Cloud SQL Connector and works well for our use case
+            # Initialize components
+            ingestor_ready = await self.ingestor.initialize()
+            retriever_ready = await self.retriever.initialize()
             
-            # Initialize schema
-            await self._initialize_schema()
+            self._initialized = ingestor_ready and retriever_ready
             
-            self.logger.info("Database manager initialized successfully with Cloud SQL Connector")
+            if self._initialized:
+                self.logger.info("DatabaseManager initialization completed successfully")
+            else:
+                self.logger.error("DatabaseManager initialization failed - components not ready")
+            
+            return self._initialized
             
         except Exception as e:
-            self.logger.error(f"Failed to initialize database manager: {e}")
-            raise
+            self.logger.error(f"Failed to initialize DatabaseManager: {e}")
+            return False
+    
+    async def _initialize_shared_resources(self):
+        """Initialize shared database connections and schema."""
+        # Initialize Cloud SQL Connector
+        self._connector = Connector()
+        
+        # Test connection
+        test_conn = await self._connector.connect_async(
+            instance_connection_string=self.config.instance_connection_name,
+            driver="asyncpg",
+            user=self.config.db_user,
+            password=self.config.db_pass,
+            db=self.config.db_name,
+        )
+        await test_conn.close()
+        
+        self.logger.info("Cloud SQL connection test successful")
+        
+        # Initialize schema
+        await self._initialize_schema()
+        
+        self.logger.info("Shared database resources initialized successfully")
     
     async def _create_connection(self):
         """Create a new database connection using Cloud SQL Connector."""
@@ -123,7 +147,11 @@ class DatabaseManager:
             source_identifier VARCHAR(512) NOT NULL,
             chunk_text_summary TEXT,
             chunk_metadata JSONB,
-            ingestion_timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+            ingestion_timestamp TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+            source_last_modified_at TIMESTAMP WITH TIME ZONE,
+            source_content_hash VARCHAR(64),
+            last_indexed_at TIMESTAMP WITH TIME ZONE,
+            ingestion_status VARCHAR(20) DEFAULT 'completed'
         );
         
         -- Create indexes for performance
@@ -160,259 +188,116 @@ class DatabaseManager:
             await conn.execute(schema_sql)
             self.logger.info("Database schema initialized")
     
-    async def insert_chunk(self, chunk: DocumentChunk) -> bool:
+    # =================================================================
+    # INGESTION COORDINATION METHODS
+    # =================================================================
+    
+    async def ingest_chunk(self, chunk_data: ChunkData) -> bool:
         """
-        Insert a single document chunk.
+        Coordinate single chunk ingestion through the ingestor component.
         
         Args:
-            chunk: DocumentChunk to insert
+            chunk_data: ChunkData object to store
             
         Returns:
             True if successful
         """
-        try:
-            import json
-            async with self.get_connection() as conn:
-                await conn.execute("""
-                    INSERT INTO document_chunks 
-                    (chunk_uuid, source_type, source_identifier, chunk_text_summary, chunk_metadata, 
-                     ingestion_timestamp, source_last_modified_at, source_content_hash, 
-                     last_indexed_at, ingestion_status)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-                    ON CONFLICT (chunk_uuid) DO UPDATE SET
-                        source_type = EXCLUDED.source_type,
-                        source_identifier = EXCLUDED.source_identifier,
-                        chunk_text_summary = EXCLUDED.chunk_text_summary,
-                        chunk_metadata = EXCLUDED.chunk_metadata,
-                        ingestion_timestamp = EXCLUDED.ingestion_timestamp,
-                        source_last_modified_at = EXCLUDED.source_last_modified_at,
-                        source_content_hash = EXCLUDED.source_content_hash,
-                        last_indexed_at = EXCLUDED.last_indexed_at,
-                        ingestion_status = EXCLUDED.ingestion_status
-                """, 
-                chunk.chunk_uuid,
-                chunk.source_type,
-                chunk.source_identifier,
-                chunk.chunk_text_summary,
-                json.dumps(chunk.chunk_metadata) if chunk.chunk_metadata else None,
-                chunk.ingestion_timestamp or datetime.now(),
-                chunk.source_last_modified_at,
-                chunk.source_content_hash,
-                chunk.last_indexed_at or datetime.now(),
-                chunk.ingestion_status or "completed"
-                )
-            
-            return True
-            
-        except Exception as e:
-            self.logger.error(f"Failed to insert chunk {chunk.chunk_uuid}: {e}")
-            return False
+        if not self._initialized:
+            raise RuntimeError("DatabaseManager not initialized. Call initialize() first.")
+        
+        return await self.ingestor.store_chunk(chunk_data)
     
-    async def batch_insert_chunks(self, chunks: List[DocumentChunk]) -> Tuple[int, int]:
+    async def batch_ingest_chunks(self, chunks: List[ChunkData]) -> Tuple[int, int]:
         """
-        Batch insert document chunks.
+        Coordinate batch chunk ingestion through the ingestor component.
         
         Args:
-            chunks: List of DocumentChunk objects
+            chunks: List of ChunkData objects to store
             
         Returns:
             Tuple of (successful_count, total_count)
         """
-        successful_count = 0
+        if not self._initialized:
+            raise RuntimeError("DatabaseManager not initialized. Call initialize() first.")
         
-        try:
-            import json
-            async with self.get_connection() as conn:
-                # Prepare and validate data for batch insert
-                values = []
-                for i, chunk in enumerate(chunks):
-                    try:
-                        # Validate UUID format
-                        uuid.UUID(chunk.chunk_uuid)
-                        
-                        # Validate text summary length (database column limits)
-                        text_summary = chunk.chunk_text_summary
-                        if text_summary and len(text_summary) > 10000:  # Reasonable limit
-                            text_summary = text_summary[:10000] + "..."
-                            self.logger.warning(f"Truncated text_summary for chunk {chunk.chunk_uuid}")
-                        
-                        # Validate and clean source fields
-                        source_type = chunk.source_type[:50] if chunk.source_type else ""
-                        source_identifier = chunk.source_identifier[:512] if chunk.source_identifier else ""
-                        
-                        # Validate JSON metadata
-                        metadata_json = None
-                        if chunk.chunk_metadata:
-                            try:
-                                metadata_json = json.dumps(chunk.chunk_metadata)
-                                # Test JSON deserialization
-                                json.loads(metadata_json)
-                            except (TypeError, ValueError) as json_error:
-                                self.logger.error(f"Invalid JSON metadata for chunk {chunk.chunk_uuid}: {json_error}")
-                                metadata_json = json.dumps({"error": "Invalid metadata", "original_type": str(type(chunk.chunk_metadata))})
-                        
-                        values.append((
-                            chunk.chunk_uuid,
-                            source_type,
-                            source_identifier,
-                            text_summary,
-                            metadata_json,
-                            chunk.ingestion_timestamp or datetime.now(),
-                            chunk.source_last_modified_at,
-                            chunk.source_content_hash,
-                            chunk.last_indexed_at or datetime.now(),
-                            chunk.ingestion_status or "completed"
-                        ))
-                        
-                    except ValueError as uuid_error:
-                        self.logger.error(f"Invalid UUID format for chunk {i}: {chunk.chunk_uuid} - {uuid_error}")
-                        continue
-                    except Exception as chunk_error:
-                        self.logger.error(f"Error preparing chunk {i} for batch insert: {chunk_error}")
-                        continue
-                
-                if not values:
-                    self.logger.error("No valid chunks to insert after validation")
-                    return 0, len(chunks)
-                
-                # Execute batch insert
-                await conn.executemany("""
-                    INSERT INTO document_chunks 
-                    (chunk_uuid, source_type, source_identifier, chunk_text_summary, chunk_metadata, 
-                     ingestion_timestamp, source_last_modified_at, source_content_hash, 
-                     last_indexed_at, ingestion_status)
-                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-                    ON CONFLICT (chunk_uuid) DO UPDATE SET
-                        source_type = EXCLUDED.source_type,
-                        source_identifier = EXCLUDED.source_identifier,
-                        chunk_text_summary = EXCLUDED.chunk_text_summary,
-                        chunk_metadata = EXCLUDED.chunk_metadata,
-                        ingestion_timestamp = EXCLUDED.ingestion_timestamp,
-                        source_last_modified_at = EXCLUDED.source_last_modified_at,
-                        source_content_hash = EXCLUDED.source_content_hash,
-                        last_indexed_at = EXCLUDED.last_indexed_at,
-                        ingestion_status = EXCLUDED.ingestion_status
-                """, values)
-                
-                successful_count = len(values)
-                self.logger.info(f"Batch inserted {successful_count} chunks")
-                
-        except Exception as e:
-            self.logger.error(f"Batch insert failed with detailed error: {type(e).__name__}: {e}")
-            if hasattr(e, 'args') and e.args:
-                self.logger.error(f"Error details: {e.args}")
-            
-            # Log first few problematic chunks for debugging
-            if len(chunks) > 0:
-                sample_chunk = chunks[0]
-                self.logger.error(f"Sample chunk data - UUID: {sample_chunk.chunk_uuid}, "
-                                f"Source: {sample_chunk.source_type}, "
-                                f"Summary length: {len(sample_chunk.chunk_text_summary) if sample_chunk.chunk_text_summary else 0}, "
-                                f"Metadata type: {type(sample_chunk.chunk_metadata)}")
-            
-            # Fallback to individual inserts
-            self.logger.info("Falling back to individual chunk inserts...")
-            for chunk in chunks:
-                if await self.insert_chunk(chunk):
-                    successful_count += 1
-        
-        return successful_count, len(chunks)
+        result = await self.ingestor.batch_store_chunks(chunks)
+        return result.successful_count, result.total_count
     
-    async def get_chunk_by_uuid(self, chunk_uuid: str) -> Optional[ChunkSearchResult]:
+    async def update_chunk_status(self, chunk_uuid: str, status: IngestionStatus) -> bool:
         """
-        Get chunk by UUID.
+        Coordinate chunk status update through the ingestor component.
         
         Args:
-            chunk_uuid: UUID of the chunk
+            chunk_uuid: UUID of chunk to update
+            status: New ingestion status
             
         Returns:
-            ChunkSearchResult or None if not found
+            True if successful
         """
-        try:
-            async with self.get_connection() as conn:
-                row = await conn.fetchrow("""
-                    SELECT chunk_uuid, source_type, source_identifier, 
-                           chunk_text_summary, chunk_metadata, ingestion_timestamp,
-                           source_last_modified_at, source_content_hash, 
-                           last_indexed_at, ingestion_status
-                    FROM document_chunks 
-                    WHERE chunk_uuid = $1
-                """, chunk_uuid)
-                
-                if row:
-                    return ChunkSearchResult(
-                        chunk_uuid=str(row['chunk_uuid']),
-                        source_type=row['source_type'],
-                        source_identifier=row['source_identifier'],
-                        chunk_text_summary=row['chunk_text_summary'],
-                        chunk_metadata=row['chunk_metadata'] or {},
-                        ingestion_timestamp=row['ingestion_timestamp'],
-                        source_last_modified_at=row['source_last_modified_at'],
-                        source_content_hash=row['source_content_hash'],
-                        last_indexed_at=row['last_indexed_at'],
-                        ingestion_status=row['ingestion_status']
-                    )
-                
-                return None
-                
-        except Exception as e:
-            self.logger.error(f"Failed to get chunk {chunk_uuid}: {e}")
-            return None
+        if not self._initialized:
+            raise RuntimeError("DatabaseManager not initialized. Call initialize() first.")
+        
+        return await self.ingestor.update_ingestion_status(chunk_uuid, status)
     
-    async def get_chunks_by_uuids(self, chunk_uuids: List[str]) -> List[ChunkSearchResult]:
+    async def delete_chunks_by_source(self, source_identifier: str) -> int:
         """
-        Get multiple chunks by UUIDs.
+        Coordinate chunk deletion by source through the ingestor component.
         
         Args:
-            chunk_uuids: List of chunk UUIDs
+            source_identifier: Source identifier to delete
             
         Returns:
-            List of ChunkSearchResult objects
+            Number of chunks deleted
         """
-        if not chunk_uuids:
-            return []
+        if not self._initialized:
+            raise RuntimeError("DatabaseManager not initialized. Call initialize() first.")
         
-        try:
-            async with self.get_connection() as conn:
-                rows = await conn.fetch("""
-                    SELECT chunk_uuid, source_type, source_identifier, 
-                           chunk_text_summary, chunk_metadata, ingestion_timestamp,
-                           source_last_modified_at, source_content_hash, 
-                           last_indexed_at, ingestion_status
-                    FROM document_chunks 
-                    WHERE chunk_uuid = ANY($1::uuid[])
-                """, chunk_uuids)
-                
-                results = []
-                for row in rows:
-                    result = ChunkSearchResult(
-                        chunk_uuid=str(row['chunk_uuid']),
-                        source_type=row['source_type'],
-                        source_identifier=row['source_identifier'],
-                        chunk_text_summary=row['chunk_text_summary'],
-                        chunk_metadata=row['chunk_metadata'] or {},
-                        ingestion_timestamp=row['ingestion_timestamp'],
-                        source_last_modified_at=row['source_last_modified_at'],
-                        source_content_hash=row['source_content_hash'],
-                        last_indexed_at=row['last_indexed_at'],
-                        ingestion_status=row['ingestion_status']
-                    )
-                    results.append(result)
-                
-                return results
-                
-        except Exception as e:
-            self.logger.error(f"Failed to get chunks by UUIDs: {e}")
-            return []
+        return await self.ingestor.delete_chunks_by_source(source_identifier)
+    
+    # =================================================================
+    # RETRIEVAL COORDINATION METHODS
+    # =================================================================
+    
+    async def get_chunk(self, chunk_uuid: str) -> Optional[ChunkData]:
+        """
+        Coordinate single chunk retrieval through the retriever component.
+        
+        Args:
+            chunk_uuid: UUID of the chunk to retrieve
+            
+        Returns:
+            ChunkData object or None if not found
+        """
+        if not self._initialized:
+            raise RuntimeError("DatabaseManager not initialized. Call initialize() first.")
+        
+        # Use the batch method with a single UUID
+        chunks = await self.retriever.get_chunks_by_uuids([chunk_uuid])
+        return chunks[0] if chunks else None
+    
+    async def get_chunks(self, chunk_uuids: List[str]) -> List[ChunkData]:
+        """
+        Coordinate multiple chunk retrieval through the retriever component.
+        
+        Args:
+            chunk_uuids: List of chunk UUIDs to retrieve
+            
+        Returns:
+            List of ChunkData objects
+        """
+        if not self._initialized:
+            raise RuntimeError("DatabaseManager not initialized. Call initialize() first.")
+        
+        return await self.retriever.get_chunks_by_uuids(chunk_uuids)
     
     async def search_chunks(self, 
                           source_type: Optional[str] = None,
                           source_identifier: Optional[str] = None,
                           metadata_filter: Optional[Dict[str, Any]] = None,
                           limit: int = 100,
-                          offset: int = 0) -> List[ChunkSearchResult]:
+                          offset: int = 0) -> List[ChunkData]:
         """
-        Search chunks with filters.
+        Coordinate chunk search through the retriever component.
         
         Args:
             source_type: Filter by source type
@@ -422,156 +307,201 @@ class DatabaseManager:
             offset: Offset for pagination
             
         Returns:
-            List of ChunkSearchResult objects
+            List of ChunkData objects
         """
-        try:
-            conditions = []
-            params = []
-            param_count = 0
-            
-            # Build WHERE conditions
+        if not self._initialized:
+            raise RuntimeError("DatabaseManager not initialized. Call initialize() first.")
+        
+        # Delegate to appropriate retriever method based on search criteria
+        if source_identifier:
+            # Use source-specific search
+            return await self.retriever.search_chunks_by_source(source_identifier, limit)
+        elif metadata_filter:
+            # Use metadata-based search
+            return await self.retriever.search_chunks_by_metadata(metadata_filter, limit)
+        else:
+            # For general search, use metadata search with source_type filter if provided
+            search_filters = {}
             if source_type:
-                param_count += 1
-                conditions.append(f"source_type = ${param_count}")
-                params.append(source_type)
+                search_filters['source_type'] = source_type
             
-            if source_identifier:
-                param_count += 1
-                conditions.append(f"source_identifier = ${param_count}")
-                params.append(source_identifier)
-            
-            if metadata_filter:
-                for key, value in metadata_filter.items():
-                    param_count += 1
-                    conditions.append(f"chunk_metadata->>'{key}' = ${param_count}")
-                    params.append(str(value))
-            
-            # Build query
-            where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
-            
-            param_count += 1
-            limit_clause = f"LIMIT ${param_count}"
-            params.append(limit)
-            
-            param_count += 1
-            offset_clause = f"OFFSET ${param_count}"
-            params.append(offset)
-            
-            query = f"""
-                SELECT chunk_uuid, source_type, source_identifier, 
-                       chunk_text_summary, chunk_metadata, ingestion_timestamp,
-                       source_last_modified_at, source_content_hash, 
-                       last_indexed_at, ingestion_status
-                FROM document_chunks 
-                {where_clause}
-                ORDER BY ingestion_timestamp DESC
-                {limit_clause} {offset_clause}
-            """
-            
-            async with self.get_connection() as conn:
-                rows = await conn.fetch(query, *params)
-                
-                results = []
-                for row in rows:
-                    result = ChunkSearchResult(
-                        chunk_uuid=str(row['chunk_uuid']),
-                        source_type=row['source_type'],
-                        source_identifier=row['source_identifier'],
-                        chunk_text_summary=row['chunk_text_summary'],
-                        chunk_metadata=row['chunk_metadata'] or {},
-                        ingestion_timestamp=row['ingestion_timestamp'],
-                        source_last_modified_at=row['source_last_modified_at'],
-                        source_content_hash=row['source_content_hash'],
-                        last_indexed_at=row['last_indexed_at'],
-                        ingestion_status=row['ingestion_status']
-                    )
-                    results.append(result)
-                
-                return results
-                
-        except Exception as e:
-            self.logger.error(f"Failed to search chunks: {e}")
-            return []
+            if search_filters:
+                return await self.retriever.search_chunks_by_metadata(search_filters, limit)
+            else:
+                # Return empty list if no search criteria provided
+                self.logger.warning("No search criteria provided to search_chunks")
+                return []
     
-    async def delete_chunks_by_source(self, source_identifier: str) -> int:
+    async def get_chunk_with_context(self, 
+                                   chunk_uuid: str, 
+                                   context_window: int = 2) -> Optional[ContextualChunk]:
         """
-        Delete all chunks for a specific source.
+        Coordinate single contextual chunk retrieval through the retriever component.
         
         Args:
-            source_identifier: Source identifier to delete
+            chunk_uuid: Primary chunk UUID
+            context_window: Number of surrounding chunks to include
             
         Returns:
-            Number of chunks deleted
+            ContextualChunk object with context or None if not found
         """
-        try:
-            async with self.get_connection() as conn:
-                result = await conn.execute("""
-                    DELETE FROM document_chunks 
-                    WHERE source_identifier = $1
-                """, source_identifier)
-                
-                # Extract count from result string like "DELETE 5"
-                deleted_count = int(result.split()[-1])
-                self.logger.info(f"Deleted {deleted_count} chunks for source {source_identifier}")
-                
-                return deleted_count
-                
-        except Exception as e:
-            self.logger.error(f"Failed to delete chunks for source {source_identifier}: {e}")
-            return 0
+        if not self._initialized:
+            raise RuntimeError("DatabaseManager not initialized. Call initialize() first.")
+        
+        return await self.retriever.get_chunk_with_context(chunk_uuid, context_window)
     
-    async def get_source_stats(self) -> Dict[str, Any]:
-        """Get statistics about sources and chunks."""
-        try:
-            async with self.get_connection() as conn:
-                stats = {}
-                
-                # Total chunks
-                total_chunks = await conn.fetchval("SELECT COUNT(*) FROM document_chunks")
-                stats['total_chunks'] = total_chunks
-                
-                # Chunks by source type
-                source_type_stats = await conn.fetch("""
-                    SELECT source_type, COUNT(*) as count 
-                    FROM document_chunks 
-                    GROUP BY source_type
-                """)
-                stats['by_source_type'] = {row['source_type']: row['count'] for row in source_type_stats}
-                
-                # Recent ingestion activity
-                recent_activity = await conn.fetch("""
-                    SELECT DATE(ingestion_timestamp) as date, COUNT(*) as count
-                    FROM document_chunks 
-                    WHERE ingestion_timestamp >= NOW() - INTERVAL '7 days'
-                    GROUP BY DATE(ingestion_timestamp)
-                    ORDER BY date DESC
-                """)
-                stats['recent_activity'] = [
-                    {'date': row['date'].isoformat(), 'count': row['count']} 
-                    for row in recent_activity
-                ]
-                
-                return stats
-                
-        except Exception as e:
-            self.logger.error(f"Failed to get source stats: {e}")
-            return {}
+    async def get_contextual_chunks(self, 
+                                  chunk_uuids: List[str],
+                                  context_window: int = 2) -> List[ContextualChunk]:
+        """
+        Coordinate contextual chunk retrieval through the retriever component.
+        
+        Args:
+            chunk_uuids: List of primary chunk UUIDs
+            context_window: Number of surrounding chunks to include
+            
+        Returns:
+            List of ContextualChunk objects with context
+        """
+        if not self._initialized:
+            raise RuntimeError("DatabaseManager not initialized. Call initialize() first.")
+        
+        contextual_chunks = []
+        for chunk_uuid in chunk_uuids:
+            contextual_chunk = await self.retriever.get_chunk_with_context(chunk_uuid, context_window)
+            if contextual_chunk:
+                contextual_chunks.append(contextual_chunk)
+        
+        return contextual_chunks
     
-    async def health_check(self) -> bool:
-        """Check database health."""
+    async def enrich_chunks(self, 
+                          chunks: List[ChunkData],
+                          vector_scores: Optional[List[float]] = None,
+                          graph_entities: Optional[List[List[str]]] = None) -> List[EnrichedChunk]:
+        """
+        Coordinate chunk enrichment through the retriever component.
+        
+        Args:
+            chunks: Base chunk data
+            vector_scores: Optional vector similarity scores
+            graph_entities: Optional graph entities per chunk
+            
+        Returns:
+            List of EnrichedChunk objects
+        """
+        if not self._initialized:
+            raise RuntimeError("DatabaseManager not initialized. Call initialize() first.")
+        
+        chunk_uuids = [str(chunk.chunk_uuid) for chunk in chunks]
+        return await self.retriever.enrich_chunks_with_metadata(chunk_uuids, vector_scores)
+    
+    # =================================================================
+    # ANALYTICS AND MONITORING METHODS
+    # =================================================================
+    
+    async def get_source_statistics(self) -> Dict[str, Any]:
+        """
+        Get comprehensive source statistics from retriever component.
+        
+        Returns:
+            Dictionary with source statistics
+        """
+        if not self._initialized:
+            return {"error": "Manager not initialized"}
+        
+        return self.retriever.get_statistics()
+    
+    async def get_ingestion_statistics(self) -> Dict[str, Any]:
+        """
+        Get ingestion statistics from ingestor component.
+        
+        Returns:
+            Dictionary with ingestion statistics
+        """
+        if not self._initialized:
+            return {"error": "Manager not initialized"}
+        
+        return self.ingestor.get_statistics()
+    
+    async def health_check(self) -> ComponentHealth:
+        """
+        Coordinate comprehensive health check of database system.
+        
+        Returns:
+            ComponentHealth with overall system status
+        """
+        start_time = datetime.now()
+        
         try:
-            async with self.get_connection() as conn:
-                # Simple query to check connectivity
-                result = await conn.fetchval("SELECT 1")
-                return result == 1
-                
+            if not self._initialized:
+                return ComponentHealth(
+                    component_name="DatabaseManager",
+                    is_healthy=False,
+                    error_message="Manager not initialized"
+                )
+            
+            # Check component health
+            ingestor_health = await self.ingestor.health_check()
+            retriever_health = await self.retriever.health_check()
+            
+            is_healthy = ingestor_health.is_healthy and retriever_health.is_healthy
+            response_time = (datetime.now() - start_time).total_seconds() * 1000
+            
+            additional_info = {
+                "ingestor_healthy": ingestor_health.is_healthy,
+                "retriever_healthy": retriever_health.is_healthy,
+                "ingestor_stats": self.ingestor.get_statistics(),
+                "retriever_stats": self.retriever.get_statistics()
+            }
+            
+            return ComponentHealth(
+                component_name="DatabaseManager",
+                is_healthy=is_healthy,
+                response_time_ms=response_time,
+                additional_info=additional_info
+            )
+            
         except Exception as e:
-            self.logger.error(f"Database health check failed: {e}")
-            return False
+            response_time = (datetime.now() - start_time).total_seconds() * 1000
+            return ComponentHealth(
+                component_name="DatabaseManager",
+                is_healthy=False,
+                response_time_ms=response_time,
+                error_message=str(e)
+            )
+    
+    def get_statistics(self) -> Dict[str, Any]:
+        """
+        Get comprehensive statistics from all components.
+        
+        Returns:
+            Dictionary with system statistics
+        """
+        if not self._initialized:
+            return {"error": "Manager not initialized"}
+        
+        return {
+            "manager_initialized": self._initialized,
+            "ingestion_stats": self.ingestor.get_statistics(),
+            "retrieval_stats": self.retriever.get_statistics(),
+            "shared_resources": {
+                "connector_initialized": self._connector is not None
+            }
+        }
     
     async def close(self):
-        """Close database connections and connector."""
-        if self._connector:
-            await self._connector.close_async()
-            self._connector = None
-            self.logger.info("Database connector closed") 
+        """Close manager and clean up database resources."""
+        try:
+            if self.ingestor:
+                await self.ingestor.close()
+            if self.retriever:
+                await self.retriever.close()
+            
+            if self._connector:
+                await self._connector.close()
+            
+            self._initialized = False
+            self.logger.info("DatabaseManager closed successfully")
+            
+        except Exception as e:
+            self.logger.error(f"Error during DatabaseManager cleanup: {e}") 

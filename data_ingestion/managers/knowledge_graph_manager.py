@@ -1,121 +1,126 @@
 """
-Knowledge Graph Manager for Neo4j operations.
-Handles entities, relationships, and graph queries derived from ingested data.
+Knowledge Graph Manager - Coordinator for Neo4j knowledge graph operations.
+Implements the Manager-as-Coordinator pattern with shared resource management.
+
+This component acts as a facade that:
+- Manages shared Neo4j driver and database connections
+- Coordinates between KnowledgeGraphIngestor and KnowledgeGraphRetriever  
+- Provides unified interface for knowledge graph operations
+- Handles schema initialization and health checks
 """
 
 import logging
 import asyncio
-import json
-from typing import List, Dict, Any, Optional, Tuple, Set
-from dataclasses import dataclass
+from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 import neo4j
 from neo4j import AsyncGraphDatabase
 
 from config.configuration import Neo4jConfig
+from ..models import (
+    Entity, Relationship, GraphContext, ComponentHealth, 
+    EntityType, BatchOperationResult
+)
+from ..ingestors.knowledge_graph_ingestor import KnowledgeGraphIngestor
+from ..retrievers.knowledge_graph_retriever import KnowledgeGraphRetriever
 
 logger = logging.getLogger(__name__)
 
-@dataclass
-class Entity:
-    """Entity data structure for knowledge graph."""
-    id: str
-    type: str
-    name: str
-    properties: Dict[str, Any]
-    source_chunks: List[str]  # UUIDs of chunks where this entity was found
-
-@dataclass
-class Relationship:
-    """Relationship data structure for knowledge graph."""
-    from_entity: str
-    to_entity: str
-    relationship_type: str
-    properties: Dict[str, Any]
-    source_chunks: List[str]  # UUIDs of chunks where this relationship was found
-
-@dataclass
-class GraphSearchResult:
-    """Result from graph search query."""
-    entities: List[Entity]
-    relationships: List[Relationship]
-    paths: List[Dict[str, Any]]
 
 class KnowledgeGraphManager:
     """
-    Manager for Neo4j Knowledge Graph operations.
+    Coordinator/Facade for Neo4j Knowledge Graph operations.
     
     Responsibilities:
-    - Managing entities and relationships
-    - Graph queries and traversals
-    - Batch processing with MERGE operations
-    - Graph analytics and statistics
+    - Managing shared Neo4j driver and database connections
+    - Coordinating between ingestor and retriever components
+    - Providing unified interface for knowledge graph operations
+    - Schema lifecycle management and health monitoring
     """
     
     def __init__(self, config: Neo4jConfig):
         self.config = config
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+        
+        # Shared resources
         self._driver: Optional[neo4j.AsyncDriver] = None
         
-    async def initialize(self):
-        """Initialize Neo4j driver and database schema."""
+        # Specialized components (initialized after shared resources)
+        self.ingestor: Optional[KnowledgeGraphIngestor] = None
+        self.retriever: Optional[KnowledgeGraphRetriever] = None
+        
+        # Manager state
+        self._initialized = False
+        
+    async def initialize(self) -> bool:
+        """
+        Initialize shared Neo4j resources and component coordination.
+        
+        Returns:
+            True if initialization successful
+        """
         try:
-            # Create async driver
-            self._driver = AsyncGraphDatabase.driver(
-                self.config.uri,
-                auth=(self.config.user, self.config.password),
-                max_connection_lifetime=30 * 60,  # 30 minutes
-                max_connection_pool_size=50,
-                connection_acquisition_timeout=30
+            self.logger.info("Initializing KnowledgeGraphManager and shared resources...")
+            
+            # Initialize shared resources
+            await self._initialize_shared_resources()
+            
+            # Initialize specialized components with shared resources
+            self.ingestor = KnowledgeGraphIngestor(
+                config=self.config,
+                driver=self._driver
             )
             
-            # Test connection
-            await self.health_check()
+            self.retriever = KnowledgeGraphRetriever(
+                config=self.config,
+                driver=self._driver
+            )
             
-            # Initialize schema
-            await self._initialize_schema()
+            # Initialize components
+            ingestor_ready = await self.ingestor.initialize()
+            retriever_ready = await self.retriever.initialize()
             
-            self.logger.info("Knowledge Graph manager initialized successfully")
+            self._initialized = ingestor_ready and retriever_ready
+            
+            if self._initialized:
+                self.logger.info("KnowledgeGraphManager initialization completed successfully")
+            else:
+                self.logger.error("KnowledgeGraphManager initialization failed - components not ready")
+            
+            return self._initialized
             
         except Exception as e:
-            self.logger.error(f"Failed to initialize Knowledge Graph manager: {e}")
-            raise
+            self.logger.error(f"Failed to initialize KnowledgeGraphManager: {e}")
+            return False
     
-    @property
-    def driver(self) -> neo4j.AsyncDriver:
-        """Get Neo4j driver."""
-        if self._driver is None:
-            raise RuntimeError("Knowledge Graph manager not initialized. Call initialize() first.")
-        return self._driver
+    async def _initialize_shared_resources(self):
+        """Initialize shared Neo4j driver and database schema."""
+        # Create async driver
+        self._driver = AsyncGraphDatabase.driver(
+            self.config.uri,
+            auth=(self.config.user, self.config.password),
+            max_connection_lifetime=30 * 60,  # 30 minutes
+            max_connection_pool_size=50,
+            connection_acquisition_timeout=30
+        )
+        
+        # Test connection
+        await self._test_connection()
+        
+        # Initialize schema
+        await self._initialize_schema()
+        
+        self.logger.info("Shared Neo4j resources initialized successfully")
     
-    def _serialize_properties(self, properties: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Serialize properties for Neo4j storage.
-        Neo4j only accepts primitive types or arrays of primitives.
-        """
-        serialized = {}
+    async def _test_connection(self):
+        """Test Neo4j connection."""
+        async with self._driver.session(database=self.config.database) as session:
+            result = await session.run("RETURN 1 as test")
+            record = await result.single()
+            if record['test'] != 1:
+                raise RuntimeError("Neo4j connection test failed")
         
-        for key, value in properties.items():
-            if value is None:
-                continue
-            elif isinstance(value, (str, int, float, bool)):
-                # Primitive types - store directly
-                serialized[key] = value
-            elif isinstance(value, list):
-                # Arrays - check if all elements are primitives
-                if all(isinstance(item, (str, int, float, bool, type(None))) for item in value):
-                    serialized[key] = [item for item in value if item is not None]
-                else:
-                    # Complex array - serialize as JSON
-                    serialized[f"{key}_json"] = json.dumps(value)
-            elif isinstance(value, dict):
-                # Nested object - serialize as JSON
-                serialized[f"{key}_json"] = json.dumps(value)
-            else:
-                # Other types - convert to string
-                serialized[key] = str(value)
-        
-        return serialized
+        self.logger.info("Neo4j connection test successful")
     
     async def _initialize_schema(self):
         """Initialize Neo4j schema with constraints and indexes."""
@@ -133,7 +138,7 @@ class KnowledgeGraphManager:
             "CREATE FULLTEXT INDEX entity_fulltext IF NOT EXISTS FOR (e:Entity) ON EACH [e.name, e.description]",
         ]
         
-        async with self.driver.session(database=self.config.database) as session:
+        async with self._driver.session(database=self.config.database) as session:
             for query in schema_queries:
                 try:
                     await session.run(query)
@@ -141,140 +146,111 @@ class KnowledgeGraphManager:
                     # Constraint already exists - this is expected
                     if "already exists" not in str(e).lower():
                         self.logger.warning(f"Schema query failed: {query} - {e}")
-            
-            self.logger.info("Knowledge Graph schema initialized")
+        
+        self.logger.info("Knowledge Graph schema initialized")
     
-    async def upsert_entity(self, entity: Entity) -> bool:
+    # =================================================================
+    # INGESTION COORDINATION METHODS
+    # =================================================================
+    
+    async def ingest_entity(self, entity: Entity) -> bool:
         """
-        Upsert a single entity.
+        Coordinate entity ingestion through the ingestor component.
         
         Args:
-            entity: Entity to upsert
+            entity: Entity to store
             
         Returns:
             True if successful
         """
-        try:
-            async with self.driver.session(database=self.config.database) as session:
-                # Serialize properties for Neo4j compatibility
-                serialized_properties = self._serialize_properties(entity.properties)
-                
-                # Build dynamic SET clause for properties
-                set_clauses = ["e.type = $type", "e.name = $name", "e.source_chunks = $source_chunks", "e.updated_at = datetime()"]
-                parameters = {
-                    'id': entity.id,
-                    'type': entity.type,
-                    'name': entity.name,
-                    'source_chunks': entity.source_chunks
-                }
-                
-                # Add individual properties to the SET clause
-                for key, value in serialized_properties.items():
-                    set_clauses.append(f"e.{key} = ${key}")
-                    parameters[key] = value
-                
-                query = f"""
-                MERGE (e:Entity {{id: $id}})
-                SET {', '.join(set_clauses)}
-                RETURN e
-                """
-                
-                await session.run(query, **parameters)
-                
-                return True
-                
-        except Exception as e:
-            self.logger.error(f"Failed to upsert entity {entity.id}: {e}")
-            return False
+        if not self._initialized:
+            raise RuntimeError("KnowledgeGraphManager not initialized. Call initialize() first.")
+        
+        return await self.ingestor.store_entity(entity)
     
-    async def batch_upsert_entities(self, entities: List[Entity]) -> Tuple[int, int]:
+    async def batch_ingest_entities(self, entities: List[Entity]) -> BatchOperationResult:
         """
-        Batch upsert entities.
+        Coordinate batch entity ingestion through the ingestor component.
         
         Args:
-            entities: List of entities to upsert
+            entities: List of entities to store
             
         Returns:
-            Tuple of (successful_count, total_count)
+            BatchOperationResult with operation statistics
         """
-        if not entities:
-            return 0, 0
+        if not self._initialized:
+            raise RuntimeError("KnowledgeGraphManager not initialized. Call initialize() first.")
         
-        successful_count = 0
-        batch_size = self.config.batch_size
+        return await self.ingestor.batch_store_entities(entities)
+    
+    async def ingest_relationship(self, relationship: Relationship) -> bool:
+        """
+        Coordinate relationship ingestion through the ingestor component.
         
-        try:
-            async with self.driver.session(database=self.config.database) as session:
-                # Process in batches
-                for i in range(0, len(entities), batch_size):
-                    batch = entities[i:i + batch_size]
-                    
-                    # Prepare batch data
-                    batch_data = []
-                    for entity in batch:
-                        # Serialize properties for Neo4j compatibility
-                        serialized_properties = self._serialize_properties(entity.properties)
-                        entity_data = {
-                            'id': entity.id,
-                            'type': entity.type,
-                            'name': entity.name,
-                            'source_chunks': entity.source_chunks
-                        }
-                        # Add serialized properties directly
-                        entity_data.update(serialized_properties)
-                        batch_data.append(entity_data)
-                    
-                    # Build dynamic SET clause for properties
-                    # Get all unique property keys from batch
-                    all_prop_keys = set()
-                    for entity_data in batch_data:
-                        for key in entity_data.keys():
-                            if key not in ['id', 'type', 'name', 'source_chunks']:
-                                all_prop_keys.add(key)
-                    
-                    # Build SET clauses
-                    set_clauses = [
-                        "e.type = entity.type",
-                        "e.name = entity.name", 
-                        "e.source_chunks = entity.source_chunks",
-                        "e.updated_at = datetime()"
-                    ]
-                    
-                    # Add property clauses
-                    for prop_key in all_prop_keys:
-                        set_clauses.append(f"e.{prop_key} = entity.{prop_key}")
-                    
-                    # Execute batch upsert
-                    query = f"""
-                    UNWIND $entities as entity
-                    MERGE (e:Entity {{id: entity.id}})
-                    SET {', '.join(set_clauses)}
-                    """
-                    
-                    await session.run(query, entities=batch_data)
-                    successful_count += len(batch)
-                    
-                    # Small delay between batches
-                    await asyncio.sleep(0.1)
-                
-                self.logger.info(f"Batch upserted {successful_count} entities")
-                
-        except Exception as e:
-            self.logger.error(f"Batch entity upsert failed: {e}")
-            # Fallback to individual upserts
-            successful_count = 0
-            for entity in entities:
-                if await self.upsert_entity(entity):
-                    successful_count += 1
+        Args:
+            relationship: Relationship to store
+            
+        Returns:
+            True if successful
+        """
+        if not self._initialized:
+            raise RuntimeError("KnowledgeGraphManager not initialized. Call initialize() first.")
         
-        return successful_count, len(entities)
+        return await self.ingestor.store_relationship(relationship)
+    
+    async def batch_ingest_relationships(self, relationships: List[Relationship]) -> BatchOperationResult:
+        """
+        Coordinate batch relationship ingestion through the ingestor component.
+        
+        Args:
+            relationships: List of relationships to store
+            
+        Returns:
+            BatchOperationResult with operation statistics
+        """
+        if not self._initialized:
+            raise RuntimeError("KnowledgeGraphManager not initialized. Call initialize() first.")
+        
+        return await self.ingestor.batch_store_relationships(relationships)
+    
+    async def ingest_graph_data(self, 
+                              entities: List[Entity], 
+                              relationships: List[Relationship]) -> Dict[str, BatchOperationResult]:
+        """
+        Coordinate complete graph data ingestion through the ingestor component.
+        
+        Args:
+            entities: List of entities to store
+            relationships: List of relationships to store
+            
+        Returns:
+            Dictionary with results for entities and relationships
+        """
+        if not self._initialized:
+            raise RuntimeError("KnowledgeGraphManager not initialized. Call initialize() first.")
+        
+        results = {}
+        
+        # Ingest entities first
+        if entities:
+            results['entities'] = await self.ingestor.batch_store_entities(entities)
+        
+        # Then ingest relationships
+        if relationships:
+            results['relationships'] = await self.ingestor.batch_store_relationships(relationships)
+        
+        return results
+    
+    # =================================================================
+    # RETRIEVAL COORDINATION METHODS
+    # =================================================================
     
     async def find_entities(self, 
-                          entity_type: Optional[str] = None,
+                          entity_type: Optional[EntityType] = None,
                           name_pattern: Optional[str] = None,
                           limit: int = 100) -> List[Entity]:
         """
-        Find entities by various criteria.
+        Coordinate entity search through the retriever component.
         
         Args:
             entity_type: Filter by entity type
@@ -284,95 +260,302 @@ class KnowledgeGraphManager:
         Returns:
             List of Entity objects
         """
-        try:
-            conditions = []
-            params = {'limit': limit}
-            
-            if entity_type:
-                conditions.append("e.type = $entity_type")
-                params['entity_type'] = entity_type
-            
-            if name_pattern:
-                conditions.append("toLower(e.name) CONTAINS toLower($name_pattern)")
-                params['name_pattern'] = name_pattern
-            
-            where_clause = "WHERE " + " AND ".join(conditions) if conditions else ""
-            
-            query = f"""
-            MATCH (e:Entity)
-            {where_clause}
-            RETURN e.id as id, e.type as type, e.name as name, 
-                   e.properties as properties, e.source_chunks as source_chunks
-            LIMIT $limit
-            """
-            
-            async with self.driver.session(database=self.config.database) as session:
-                result = await session.run(query, **params)
-                records = await result.data()
-                
-                entities = []
-                for record in records:
-                    entity = Entity(
-                        id=record['id'],
-                        type=record['type'],
-                        name=record['name'],
-                        properties=record['properties'] or {},
-                        source_chunks=record['source_chunks'] or []
-                    )
-                    entities.append(entity)
-                
-                return entities
-                
-        except Exception as e:
-            self.logger.error(f"Failed to find entities: {e}")
+        if not self._initialized:
+            raise RuntimeError("KnowledgeGraphManager not initialized. Call initialize() first.")
+        
+        if name_pattern:
+            # Use text-based search
+            return await self.retriever.get_entities_by_query(name_pattern, [entity_type] if entity_type else None, limit)
+        elif entity_type:
+            # Use type-based search
+            return await self.retriever.search_entities_by_type(entity_type, limit)
+        else:
+            # No specific criteria, return empty list
+            self.logger.warning("No search criteria provided to find_entities")
             return []
     
-    async def get_graph_stats(self) -> Dict[str, Any]:
-        """Get statistics about the knowledge graph."""
-        try:
-            async with self.driver.session(database=self.config.database) as session:
-                stats = {}
-                
-                # Entity counts
-                result = await session.run("MATCH (e:Entity) RETURN count(e) as count")
-                record = await result.single()
-                stats['total_entities'] = record['count'] if record else 0
-                
-                # Entity types
-                result = await session.run("""
-                    MATCH (e:Entity) 
-                    RETURN e.type as type, count(e) as count 
-                    ORDER BY count DESC
-                """)
-                records = await result.data()
-                stats['entity_types'] = {r['type']: r['count'] for r in records}
-                
-                # Relationship counts
-                result = await session.run("MATCH ()-[r]->() RETURN count(r) as count")
-                record = await result.single()
-                stats['total_relationships'] = record['count'] if record else 0
-                
-                return stats
-                
-        except Exception as e:
-            self.logger.error(f"Failed to get graph stats: {e}")
-            return {}
+    async def get_entity(self, entity_id: str) -> Optional[Entity]:
+        """
+        Coordinate single entity retrieval through the retriever component.
+        
+        Args:
+            entity_id: ID of entity to retrieve
+            
+        Returns:
+            Entity object or None if not found
+        """
+        if not self._initialized:
+            raise RuntimeError("KnowledgeGraphManager not initialized. Call initialize() first.")
+        
+        entities = await self.retriever.get_entities_by_ids([entity_id])
+        return entities[0] if entities else None
     
-    async def health_check(self) -> bool:
-        """Check Neo4j health."""
+    async def find_relationships(self, 
+                               from_entity: Optional[str] = None,
+                               to_entity: Optional[str] = None,
+                               relationship_type: Optional[str] = None,
+                               limit: int = 100) -> List[Relationship]:
+        """
+        Coordinate relationship search through the retriever component.
+        
+        Args:
+            from_entity: Filter by source entity ID
+            to_entity: Filter by target entity ID
+            relationship_type: Filter by relationship type
+            limit: Maximum results to return
+            
+        Returns:
+            List of Relationship objects
+        """
+        if not self._initialized:
+            raise RuntimeError("KnowledgeGraphManager not initialized. Call initialize() first.")
+        
+        # Build entity IDs list based on filters
+        entity_ids = []
+        if from_entity:
+            entity_ids.append(from_entity)
+        if to_entity and to_entity != from_entity:
+            entity_ids.append(to_entity)
+        
+        if not entity_ids:
+            self.logger.warning("No entity filters provided to find_relationships")
+            return []
+        
+        # Get relationships for the specified entities
+        relationships = await self.retriever.get_relationships_for_entities(entity_ids, max_depth=1)
+        
+        # Apply additional filtering if needed
+        filtered_relationships = []
+        for rel in relationships:
+            # Filter by from_entity if specified
+            if from_entity and rel.from_entity != from_entity:
+                continue
+            
+            # Filter by to_entity if specified
+            if to_entity and rel.to_entity != to_entity:
+                continue
+            
+            # Filter by relationship_type if specified
+            if relationship_type and rel.relationship_type != relationship_type:
+                continue
+            
+            filtered_relationships.append(rel)
+            
+            # Apply limit
+            if len(filtered_relationships) >= limit:
+                break
+        
+        return filtered_relationships
+    
+    async def get_entity_neighborhood(self, 
+                                    entity_id: str,
+                                    max_depth: int = 2,
+                                    max_entities: int = 50) -> GraphContext:
+        """
+        Coordinate entity neighborhood retrieval through the retriever component.
+        
+        Args:
+            entity_id: Central entity ID
+            max_depth: Maximum traversal depth
+            max_entities: Maximum entities to return
+            
+        Returns:
+            GraphContext with entities and relationships
+        """
+        if not self._initialized:
+            raise RuntimeError("KnowledgeGraphManager not initialized. Call initialize() first.")
+        
+        # Use contextual graph with the entity as the query focus
+        entity = await self.get_entity(entity_id)
+        if not entity:
+            return GraphContext(
+                query_entities=[],
+                related_entities=[],
+                relationships=[],
+                entity_chunks_mapping={},
+                graph_depth=max_depth,
+                total_entities_found=0
+            )
+        
+        # Use the entity name as query to get contextual graph
+        return await self.retriever.get_contextual_graph(
+            query=entity.name,
+            chunk_uuids=entity.source_chunks,
+            max_entities=max_entities,
+            max_depth=max_depth
+        )
+    
+    async def search_entities_by_text(self, 
+                                    query: str,
+                                    entity_types: Optional[List[EntityType]] = None,
+                                    limit: int = 20) -> List[Entity]:
+        """
+        Coordinate text-based entity search through the retriever component.
+        
+        Args:
+            query: Search query text
+            entity_types: Optional filter by entity types
+            limit: Maximum results to return
+            
+        Returns:
+            List of Entity objects ranked by relevance
+        """
+        if not self._initialized:
+            raise RuntimeError("KnowledgeGraphManager not initialized. Call initialize() first.")
+        
+        return await self.retriever.get_entities_by_query(query, entity_types, limit)
+    
+    async def get_graph_context_for_chunks(self, 
+                                         chunk_uuids: List[str],
+                                         max_depth: int = 1) -> GraphContext:
+        """
+        Coordinate graph context retrieval for specific chunks through the retriever component.
+        
+        Args:
+            chunk_uuids: List of chunk UUIDs
+            max_depth: Graph traversal depth
+            
+        Returns:
+            GraphContext with relevant entities and relationships
+        """
+        if not self._initialized:
+            raise RuntimeError("KnowledgeGraphManager not initialized. Call initialize() first.")
+        
+        # Convert string UUIDs to UUID objects
+        from uuid import UUID
+        uuid_objects = []
+        for chunk_uuid in chunk_uuids:
+            try:
+                uuid_objects.append(UUID(chunk_uuid))
+            except ValueError:
+                self.logger.warning(f"Invalid UUID format: {chunk_uuid}")
+                continue
+        
+        if not uuid_objects:
+            return GraphContext(
+                query_entities=[],
+                related_entities=[],
+                relationships=[],
+                entity_chunks_mapping={},
+                graph_depth=max_depth,
+                total_entities_found=0
+            )
+        
+        # Use contextual graph to get entities and relationships for these chunks
+        return await self.retriever.get_contextual_graph(
+            query="",  # Empty query since we're focusing on chunks
+            chunk_uuids=uuid_objects,
+            max_entities=50,
+            max_depth=max_depth
+        )
+    
+    # =================================================================
+    # ANALYTICS AND MONITORING METHODS
+    # =================================================================
+    
+    async def get_graph_statistics(self) -> Dict[str, Any]:
+        """
+        Get comprehensive graph statistics from retriever component.
+        
+        Returns:
+            Dictionary with graph statistics
+        """
+        if not self._initialized:
+            return {"error": "Manager not initialized"}
+        
+        return self.retriever.get_statistics()
+    
+    async def get_ingestion_statistics(self) -> Dict[str, Any]:
+        """
+        Get ingestion statistics from ingestor component.
+        
+        Returns:
+            Dictionary with ingestion statistics
+        """
+        if not self._initialized:
+            return {"error": "Manager not initialized"}
+        
+        return self.ingestor.get_statistics()
+    
+    async def health_check(self) -> ComponentHealth:
+        """
+        Coordinate comprehensive health check of knowledge graph system.
+        
+        Returns:
+            ComponentHealth with overall system status
+        """
+        start_time = datetime.now()
+        
         try:
-            async with self.driver.session(database=self.config.database) as session:
-                result = await session.run("RETURN 1 as test")
-                record = await result.single()
-                return record['test'] == 1
-                
+            if not self._initialized:
+                return ComponentHealth(
+                    component_name="KnowledgeGraphManager",
+                    is_healthy=False,
+                    error_message="Manager not initialized"
+                )
+            
+            # Check component health
+            ingestor_health = await self.ingestor.health_check()
+            retriever_health = await self.retriever.health_check()
+            
+            is_healthy = ingestor_health.is_healthy and retriever_health.is_healthy
+            response_time = (datetime.now() - start_time).total_seconds() * 1000
+            
+            additional_info = {
+                "ingestor_healthy": ingestor_health.is_healthy,
+                "retriever_healthy": retriever_health.is_healthy,
+                "ingestor_stats": self.ingestor.get_statistics(),
+                "retriever_stats": self.retriever.get_statistics()
+            }
+            
+            return ComponentHealth(
+                component_name="KnowledgeGraphManager",
+                is_healthy=is_healthy,
+                response_time_ms=response_time,
+                additional_info=additional_info
+            )
+            
         except Exception as e:
-            self.logger.error(f"Knowledge Graph health check failed: {e}")
-            return False
+            response_time = (datetime.now() - start_time).total_seconds() * 1000
+            return ComponentHealth(
+                component_name="KnowledgeGraphManager",
+                is_healthy=False,
+                response_time_ms=response_time,
+                error_message=str(e)
+            )
+    
+    def get_statistics(self) -> Dict[str, Any]:
+        """
+        Get comprehensive statistics from all components.
+        
+        Returns:
+            Dictionary with system statistics
+        """
+        if not self._initialized:
+            return {"error": "Manager not initialized"}
+        
+        return {
+            "manager_initialized": self._initialized,
+            "ingestion_stats": self.ingestor.get_statistics(),
+            "retrieval_stats": self.retriever.get_statistics(),
+            "shared_resources": {
+                "driver_initialized": self._driver is not None
+            }
+        }
     
     async def close(self):
-        """Close Neo4j driver."""
-        if self._driver:
-            await self._driver.close()
-            self._driver = None
-            self.logger.info("Neo4j driver closed") 
+        """Close manager and clean up Neo4j resources."""
+        try:
+            if self.ingestor:
+                await self.ingestor.close()
+            if self.retriever:
+                await self.retriever.close()
+            
+            if self._driver:
+                await self._driver.close()
+            
+            self._initialized = False
+            self.logger.info("KnowledgeGraphManager closed successfully")
+            
+        except Exception as e:
+            self.logger.error(f"Error during KnowledgeGraphManager cleanup: {e}") 

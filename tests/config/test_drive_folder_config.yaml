@@ -1,0 +1,48 @@
+
+version: "1.0"
+
+project_config:
+  google_cloud_project: "ps-agent-sandbox"
+  google_cloud_location: "us-west1"
+
+pipeline_config:
+  chunk_size: 1500
+  chunk_overlap: 200
+  embedding_model: "text-embedding-005"
+  batch_size: 100
+  enable_knowledge_graph: true
+  enable_change_detection: true
+  default_strategy: "smart_sync"
+  
+  # Database settings
+  instance-connection-name: "ps-agent-sandbox:us-west1:team-assistance-cm-v1"
+  db_name: "postgres"
+  db_user: "postgres"
+  db_pass: "AMkk2012;AMkk2012"
+  
+  # Vector search settings
+  vector_search_index: "2585233311878086656"
+  vector_search_endpoint: "projects/267266051209/locations/us-west1/indexEndpoints/6568702366659379200"
+  vector_search_bucket: "gs://gs-team-assistant-cm-v1"
+  
+  # Neo4j settings  
+  neo4j_uri: "neo4j://nyx.gagan.pro"
+  neo4j_user: "neo4j"
+  neo4j_password: "h7p6iYRB3jDQ384ZBbQN99f6T"
+  database: "neo4j"
+
+data_sources:
+- access_level: read
+  config:
+    file_types:
+    - google_doc
+    - pdf
+    - text
+    folder_id: 1ptFZLZApmOZw6NWpmxoEGEAKwBaBhIcm
+    include_subfolders: true
+    max_file_size_mb: 50
+  description: Test drive_folder source
+  enabled: true
+  source_id: test-drive_folder
+  source_type: drive_folder
+

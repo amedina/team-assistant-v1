@@ -13,11 +13,12 @@ from utils.secret_manager import SecretConfig
 from data_ingestion.connectors.base_connector import BaseConnector, SourceDocument, ConnectionStatus
 
 class DriveConnector(BaseConnector):
-    """Connector for Google Drive folders."""
+    """Connector for Google Drive folders and individual files."""
     
     def __init__(self, source_config: Dict[str, Any]):
         super().__init__(source_config)
         self.folder_id = self.config.get("folder_id")
+        self.file_id = self.config.get("file_id")  # Support for individual files
         self.include_subfolders = self.config.get("include_subfolders", True)
         self.file_types = self.config.get("file_types", ["google_doc", "google_slide", "pdf", "text"])
         self.max_file_size_mb = self.config.get("max_file_size_mb", 50)
@@ -30,8 +31,8 @@ class DriveConnector(BaseConnector):
     async def connect(self) -> bool:
         """Establish connection to Google Drive API."""
         try:
-            if not self.folder_id:
-                self.logger.error("No folder_id specified in configuration")
+            if not self.folder_id and not self.file_id:
+                self.logger.error("No folder_id or file_id specified in configuration")
                 return False
             
             # Try to get credentials in order of preference
@@ -43,21 +44,25 @@ class DriveConnector(BaseConnector):
             # Build Drive service
             self.drive_service = build('drive', 'v3', credentials=self.credentials)
             
-            # Test connection by trying to get folder info
+            # Test connection by trying to get folder or file info
             try:
-                folder_info = self.drive_service.files().get(fileId=self.folder_id).execute()
-                self.logger.info(f"Successfully connected to Drive folder: {folder_info.get('name', self.folder_id)}")
+                target_id = self.folder_id or self.file_id
+                target_info = self.drive_service.files().get(fileId=target_id).execute()
+                target_type = "folder" if self.folder_id else "file"
+                self.logger.info(f"Successfully connected to Drive {target_type}: {target_info.get('name', target_id)}")
             except Exception as drive_error:
                 # More specific error handling for Drive API issues
                 error_str = str(drive_error)
+                target_type = "folder" if self.folder_id else "file"
+                target_id = self.folder_id or self.file_id
                 if "403" in error_str and "insufficientPermissions" in error_str:
-                    self.logger.error(f"Insufficient permissions to access folder {self.folder_id}")
+                    self.logger.error(f"Insufficient permissions to access {target_type} {target_id}")
                     self.logger.error("The service account may need:")
                     self.logger.error("1. Google Drive API enabled in the project")
                     self.logger.error("2. Drive read permissions")
-                    self.logger.error("3. Access to the specific folder (shared with service account email)")
+                    self.logger.error(f"3. Access to the specific {target_type} (shared with service account email)")
                 elif "404" in error_str:
-                    self.logger.error(f"Folder {self.folder_id} not found or not accessible")
+                    self.logger.error(f"{target_type.title()} {target_id} not found or not accessible")
                 else:
                     self.logger.error(f"Drive API error: {error_str}")
                 return False
@@ -128,39 +133,59 @@ class DriveConnector(BaseConnector):
     async def fetch_documents(self, 
                             last_sync: Optional[datetime] = None,
                             limit: Optional[int] = None) -> AsyncIterator[SourceDocument]:
-        """Fetch documents from Google Drive folder."""
+        """Fetch documents from Google Drive folder or individual file."""
         if not self.drive_service:
             await self.connect()
         
         documents_processed = 0
         
         try:
-            # Get all files from the folder (and subfolders if enabled)
-            files = await self._list_files_in_folder(self.folder_id, last_sync)
-            self.logger.info(f"Found {len(files)} total files in Drive folder")
-            
-            processable_files = [f for f in files if self._should_process_file(f)]
-            self.logger.info(f"Will process {len(processable_files)} files (limit: {limit or 'none'})")
-            
-            for file_info in files:
-                if limit and documents_processed >= limit:
-                    self.logger.info(f"Reached limit of {limit} documents")
-                    break
-                    
-                # Check if file should be processed
-                if not self._should_process_file(file_info):
-                    continue
+            if self.file_id:
+                # Handle individual file
+                self.logger.info("Fetching individual Drive file")
+                file_info = self.drive_service.files().get(
+                    fileId=self.file_id,
+                    fields='id, name, mimeType, size, modifiedTime, webViewLink, parents'
+                ).execute()
                 
-                self.logger.info(f"Processing file: {file_info.get('name')} (MIME: {file_info.get('mimeType')})")
-                
-                # Download and process the file
-                document = await self._process_file(file_info)
-                if document:
-                    yield document
-                    documents_processed += 1
-                    self.logger.info(f"Successfully processed: {file_info.get('name')} ({documents_processed}/{len(processable_files)})")
+                if self._should_process_file(file_info):
+                    self.logger.info(f"Processing file: {file_info.get('name')} (MIME: {file_info.get('mimeType')})")
+                    document = await self._process_file(file_info)
+                    if document:
+                        yield document
+                        self.logger.info(f"Successfully processed: {file_info.get('name')}")
+                    else:
+                        self.logger.warning(f"Failed to process: {file_info.get('name')}")
                 else:
-                    self.logger.warning(f"Failed to process: {file_info.get('name')}")
+                    self.logger.info(f"File {file_info.get('name')} filtered out by processing rules")
+            else:
+                # Handle folder (existing logic)
+                # Get all files from the folder (and subfolders if enabled)
+                files = await self._list_files_in_folder(self.folder_id, last_sync)
+                self.logger.info(f"Found {len(files)} total files in Drive folder")
+                
+                processable_files = [f for f in files if self._should_process_file(f)]
+                self.logger.info(f"Will process {len(processable_files)} files (limit: {limit or 'none'})")
+                
+                for file_info in files:
+                    if limit and documents_processed >= limit:
+                        self.logger.info(f"Reached limit of {limit} documents")
+                        break
+                        
+                    # Check if file should be processed
+                    if not self._should_process_file(file_info):
+                        continue
+                    
+                    self.logger.info(f"Processing file: {file_info.get('name')} (MIME: {file_info.get('mimeType')})")
+                    
+                    # Download and process the file
+                    document = await self._process_file(file_info)
+                    if document:
+                        yield document
+                        documents_processed += 1
+                        self.logger.info(f"Successfully processed: {file_info.get('name')} ({documents_processed}/{len(processable_files)})")
+                    else:
+                        self.logger.warning(f"Failed to process: {file_info.get('name')}")
                     
         except Exception as e:
             self.logger.error(f"Error fetching documents from Drive: {str(e)}")
@@ -172,8 +197,17 @@ class DriveConnector(BaseConnector):
             await self.connect()
         
         try:
-            files = await self._list_files_in_folder(self.folder_id)
-            return len([f for f in files if self._should_process_file(f)])
+            if self.file_id:
+                # Handle individual file
+                file_info = self.drive_service.files().get(
+                    fileId=self.file_id,
+                    fields='id, name, mimeType, size, modifiedTime, webViewLink, parents'
+                ).execute()
+                return 1 if self._should_process_file(file_info) else 0
+            else:
+                # Handle folder
+                files = await self._list_files_in_folder(self.folder_id)
+                return len([f for f in files if self._should_process_file(f)])
         except Exception as e:
             self.logger.error(f"Error getting document count: {str(e)}")
             return 0
@@ -191,8 +225,9 @@ class DriveConnector(BaseConnector):
                         error_message="Failed to connect to Google Drive"
                     )
             
-            # Test access to the folder
-            folder_info = self.drive_service.files().get(fileId=self.folder_id).execute()
+            # Test access to the folder or file
+            target_id = self.folder_id or self.file_id
+            target_info = self.drive_service.files().get(fileId=target_id).execute()
             
             # Get document count
             try:

@@ -11,11 +11,15 @@ from datetime import datetime
 from enum import Enum
 
 from config.configuration import SystemConfig, get_system_config
-from data_ingestion.managers.vector_store_manager import VectorStoreManager, EmbeddingData
-from data_ingestion.managers.database_manager import DatabaseManager, DocumentChunk
+from data_ingestion.managers.vector_store_manager import VectorStoreManager
+from data_ingestion.managers.database_manager import DatabaseManager
 from data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
 from data_ingestion.processors.text_processor import TextProcessor
 from data_ingestion.connectors.base_connector import BaseConnector, SourceDocument
+from data_ingestion.models import (
+    EmbeddingData, ChunkData, Entity, Relationship, 
+    ComponentHealth, SystemHealth, IngestionStatus
+)
 
 logger = logging.getLogger(__name__)
 
@@ -55,15 +59,6 @@ class PipelineStats:
             return (self.end_time - self.start_time).total_seconds()
         return 0.0
 
-@dataclass
-class HealthCheckResult:
-    """System health check result."""
-    overall_status: bool
-    vector_store_healthy: bool
-    database_healthy: bool
-    knowledge_graph_healthy: bool
-    issues: List[str]
-
 class PipelineManager:
     """
     Central control unit for the data processing pipeline.
@@ -102,20 +97,21 @@ class PipelineManager:
                 enable_entity_extraction=self.config.pipeline_config.enable_knowledge_graph
             )
             
-            # Initialize vector store manager
+            # Initialize vector store manager with coordinator pattern
             if self.config.pipeline_config.vector_search:
                 self.vector_store_manager = VectorStoreManager(
                     self.config.pipeline_config.vector_search
                 )
+                await self.vector_store_manager.initialize()
             
-            # Initialize database manager
+            # Initialize database manager with coordinator pattern
             if self.config.pipeline_config.database:
                 self.database_manager = DatabaseManager(
                     self.config.pipeline_config.database
                 )
                 await self.database_manager.initialize()
             
-            # Initialize knowledge graph manager (if enabled)
+            # Initialize knowledge graph manager with coordinator pattern
             if (self.config.pipeline_config.enable_knowledge_graph and 
                 self.config.pipeline_config.neo4j):
                 self.knowledge_graph_manager = KnowledgeGraphManager(
@@ -299,6 +295,9 @@ class PipelineManager:
             elif source_config.source_type == "drive_folder":
                 from data_ingestion.connectors.drive_connector import DriveConnector
                 return DriveConnector(source_config.__dict__)
+            elif source_config.source_type == "drive_file":
+                from data_ingestion.connectors.drive_connector import DriveConnector
+                return DriveConnector(source_config.__dict__)
             elif source_config.source_type == "web_source":
                 from data_ingestion.connectors.web_connector import WebConnector
                 return WebConnector(source_config.__dict__)
@@ -325,10 +324,10 @@ class PipelineManager:
         return None
     
     async def _store_processed_document(self, processed_doc, stats: PipelineStats):
-        """Store processed document chunks in all configured storage systems."""
+        """Store processed document chunks in all configured storage systems using coordinator pattern."""
         try:
-            # Prepare data for storage
-            database_chunks = []
+            # Prepare data for storage using centralized models
+            chunk_data_list = []
             embedding_data = []
             entities = []
             relationships = []
@@ -336,8 +335,8 @@ class PipelineManager:
             for chunk in processed_doc.chunks:
                 stats.total_chunks += 1
                 
-                # Prepare database chunk
-                db_chunk = DocumentChunk(
+                # Prepare ChunkData using centralized model
+                chunk_data = ChunkData(
                     chunk_uuid=chunk.chunk_uuid,
                     source_type=chunk.metadata.get('source_type', ''),
                     source_identifier=chunk.metadata.get('source_identifier', ''),
@@ -347,9 +346,9 @@ class PipelineManager:
                     source_last_modified_at=chunk.metadata.get('last_modified'),
                     source_content_hash=chunk.metadata.get('content_hash'),
                     last_indexed_at=datetime.now(),
-                    ingestion_status="completed"
+                    ingestion_status=IngestionStatus.COMPLETED
                 )
-                database_chunks.append(db_chunk)
+                chunk_data_list.append(chunk_data)
                 
                 # Collect entities and relationships for knowledge graph
                 if chunk.entities:
@@ -362,9 +361,9 @@ class PipelineManager:
             vector_store_success = True
             knowledge_graph_success = True
             
-            # Store in database
-            if self.database_manager and database_chunks:
-                database_success_count, total_count = await self.database_manager.batch_insert_chunks(database_chunks)
+            # Store in database using coordinator pattern
+            if self.database_manager and chunk_data_list:
+                database_success_count, total_count = await self.database_manager.batch_ingest_chunks(chunk_data_list)
                 
                 # Track database failures as errors
                 failed_count = total_count - database_success_count
@@ -376,26 +375,21 @@ class PipelineManager:
                 # If no database manager, assume all chunks "succeed" for database
                 database_success_count = len(processed_doc.chunks)
             
-            # Generate and store embeddings
-            if self.vector_store_manager and database_chunks:
+            # Generate and store embeddings using coordinator pattern
+            if self.vector_store_manager and chunk_data_list:
                 try:
                     # Extract text for embedding generation
                     texts = [chunk.text for chunk in processed_doc.chunks]
-                    embeddings = await self.vector_store_manager.generate_embeddings(texts)
+                    chunk_uuids = [str(chunk.chunk_uuid) for chunk in processed_doc.chunks]
+                    metadata_list = [chunk.chunk_metadata for chunk in chunk_data_list]
                     
-                    # Prepare embedding data
-                    for i, (chunk, embedding) in enumerate(zip(processed_doc.chunks, embeddings)):
-                        emb_data = EmbeddingData(
-                            chunk_uuid=chunk.chunk_uuid,
-                            embedding=embedding,
-                            metadata=chunk.metadata
-                        )
-                        embedding_data.append(emb_data)
+                    # Use coordinator method for generation and storage
+                    result = await self.vector_store_manager.generate_and_ingest(texts, chunk_uuids, metadata_list)
                     
-                    # Store embeddings
-                    vector_store_success = await self.vector_store_manager.batch_upsert(embedding_data)
-                    if not vector_store_success:
-                        error_msg = f"Failed to store {len(embedding_data)} embeddings in vector store"
+                    if result.successful_count != len(texts):
+                        vector_store_success = False
+                        failed_count = len(texts) - result.successful_count
+                        error_msg = f"Failed to store {failed_count}/{len(texts)} embeddings in vector store"
                         self.logger.error(error_msg)
                         stats.errors.append(error_msg)
                         
@@ -405,28 +399,35 @@ class PipelineManager:
                     self.logger.error(error_msg)
                     stats.errors.append(error_msg)
             
-            # Store in knowledge graph
+            # Store in knowledge graph using coordinator pattern
             if (self.knowledge_graph_manager and 
                 self.config.pipeline_config.enable_knowledge_graph and
                 (entities or relationships)):
                 
                 try:
                     if entities:
-                        kg_success_count, kg_total_count = await self.knowledge_graph_manager.batch_upsert_entities(entities)
+                        result = await self.knowledge_graph_manager.batch_ingest_entities(entities)
                         # Update entity statistics
-                        stats.total_entities += kg_success_count
+                        stats.total_entities += result.successful_count
                         
-                        failed_entities = kg_total_count - kg_success_count
+                        failed_entities = result.total_count - result.successful_count
                         if failed_entities > 0:
                             knowledge_graph_success = False
-                            error_msg = f"Failed to store {failed_entities}/{kg_total_count} entities in knowledge graph"
+                            error_msg = f"Failed to store {failed_entities}/{result.total_count} entities in knowledge graph"
                             self.logger.error(error_msg)
                             stats.errors.append(error_msg)
                     
                     if relationships:
-                        # Note: Currently relationships are stored as part of entities
-                        # But we should track them separately if the KG manager supports it
-                        stats.total_relationships += len(relationships)
+                        result = await self.knowledge_graph_manager.batch_ingest_relationships(relationships)
+                        # Update relationship statistics
+                        stats.total_relationships += result.successful_count
+                        
+                        failed_relationships = result.total_count - result.successful_count
+                        if failed_relationships > 0:
+                            knowledge_graph_success = False
+                            error_msg = f"Failed to store {failed_relationships}/{result.total_count} relationships in knowledge graph"
+                            self.logger.error(error_msg)
+                            stats.errors.append(error_msg)
                         
                 except Exception as e:
                     knowledge_graph_success = False
@@ -453,47 +454,37 @@ class PipelineManager:
             self.logger.error(error_msg)
             stats.errors.append(error_msg)
     
-    async def health_check(self) -> HealthCheckResult:
-        """Perform comprehensive health check of all components."""
-        result = HealthCheckResult(
-            overall_status=True,
-            vector_store_healthy=True,
-            database_healthy=True,
-            knowledge_graph_healthy=True,
-            issues=[]
-        )
+    async def health_check(self) -> SystemHealth:
+        """Perform comprehensive health check of all components using coordinator pattern."""
+        # Individual component health checks
+        vector_store_health = ComponentHealth(component_name="VectorStore", is_healthy=True)
+        database_health = ComponentHealth(component_name="Database", is_healthy=True)
+        knowledge_graph_health = ComponentHealth(component_name="KnowledgeGraph", is_healthy=True)
         
         try:
-            # Check vector store
+            # Check vector store using coordinator pattern
             if self.vector_store_manager:
-                result.vector_store_healthy = await self.vector_store_manager.health_check()
-                if not result.vector_store_healthy:
-                    result.issues.append("Vector store is unhealthy")
+                vector_store_health = await self.vector_store_manager.health_check()
             
-            # Check database
+            # Check database using coordinator pattern
             if self.database_manager:
-                result.database_healthy = await self.database_manager.health_check()
-                if not result.database_healthy:
-                    result.issues.append("Database is unhealthy")
+                database_health = await self.database_manager.health_check()
             
-            # Check knowledge graph
+            # Check knowledge graph using coordinator pattern
             if self.knowledge_graph_manager:
-                result.knowledge_graph_healthy = await self.knowledge_graph_manager.health_check()
-                if not result.knowledge_graph_healthy:
-                    result.issues.append("Knowledge graph is unhealthy")
-            
-            # Overall status
-            result.overall_status = (
-                result.vector_store_healthy and 
-                result.database_healthy and 
-                result.knowledge_graph_healthy
-            )
+                knowledge_graph_health = await self.knowledge_graph_manager.health_check()
             
         except Exception as e:
-            result.overall_status = False
-            result.issues.append(f"Health check failed: {e}")
+            self.logger.error(f"Health check failed: {e}")
         
-        return result
+        # Create SystemHealth using centralized model
+        system_health = SystemHealth(
+            vector_store=vector_store_health,
+            database=database_health,
+            knowledge_graph=knowledge_graph_health
+        )
+        
+        return system_health
     
     async def get_pipeline_stats(self) -> Dict[str, Any]:
         """Get comprehensive pipeline statistics."""
@@ -507,43 +498,35 @@ class PipelineManager:
                 'enable_knowledge_graph': self.config.pipeline_config.enable_knowledge_graph
             },
             'enabled_sources': len(self.config.get_enabled_sources()),
-            'components': {
-                'vector_store': self.vector_store_manager is not None,
-                'database': self.database_manager is not None,
-                'knowledge_graph': self.knowledge_graph_manager is not None,
-                'text_processor': self.text_processor is not None
-            }
+            'component_stats': {}
         }
         
-        # Add component-specific stats
-        try:
-            if self.database_manager:
-                db_stats = await self.database_manager.get_source_stats()
-                stats['database_stats'] = db_stats
-            
-            if self.knowledge_graph_manager:
-                kg_stats = await self.knowledge_graph_manager.get_graph_stats()
-                stats['knowledge_graph_stats'] = kg_stats
-                
-            if self.vector_store_manager:
-                vs_stats = await self.vector_store_manager.get_index_stats()
-                stats['vector_store_stats'] = vs_stats
-                
-        except Exception as e:
-            self.logger.warning(f"Failed to get component stats: {e}")
+        # Get component statistics using coordinator pattern
+        if self.vector_store_manager:
+            stats['component_stats']['vector_store'] = self.vector_store_manager.get_statistics()
+        
+        if self.database_manager:
+            stats['component_stats']['database'] = self.database_manager.get_statistics()
+        
+        if self.knowledge_graph_manager:
+            stats['component_stats']['knowledge_graph'] = self.knowledge_graph_manager.get_statistics()
         
         return stats
     
     async def cleanup(self):
-        """Clean up resources and close connections."""
+        """Clean up pipeline resources using coordinator pattern."""
         try:
+            if self.vector_store_manager:
+                await self.vector_store_manager.close()
+            
             if self.database_manager:
                 await self.database_manager.close()
             
             if self.knowledge_graph_manager:
                 await self.knowledge_graph_manager.close()
             
+            self._initialized = False
             self.logger.info("Pipeline cleanup completed")
             
         except Exception as e:
-            self.logger.error(f"Pipeline cleanup failed: {e}") 
+            self.logger.error(f"Error during pipeline cleanup: {e}") 

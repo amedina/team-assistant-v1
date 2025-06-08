@@ -320,6 +320,10 @@ class ConfigurationManager:
             if not source.config.get("folder_id"):
                 issues.append(f"Drive source {source.source_id} missing folder_id")
         
+        elif source.source_type == "drive_file":
+            if not source.config.get("file_id"):
+                issues.append(f"Drive file source {source.source_id} missing file_id")
+        
         elif source.source_type == "web_source":
             if not source.config.get("urls"):
                 issues.append(f"Web source {source.source_id} missing urls")

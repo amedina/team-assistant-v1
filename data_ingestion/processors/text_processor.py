@@ -1,20 +1,26 @@
 """
-Text Processor for document processing and chunking.
-Central engine for transforming raw data into structured format with intelligent chunking.
+Text Processor - Document processing and chunking functionality.
+
+This component handles:
+- Document loading and text extraction
+- Intelligent text chunking with overlap
+- Entity and relationship extraction
+- Metadata enrichment
 """
 
-import re
-import uuid
 import logging
-from typing import List, Dict, Any, Optional, Tuple
-from dataclasses import dataclass
+import uuid
+import hashlib
+import re
+from typing import List, Dict, Any, Optional, Union, Tuple
 from datetime import datetime
+from dataclasses import dataclass
+
 import spacy
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-import nltk
 from nltk.tokenize import sent_tokenize
 
-from data_ingestion.managers.knowledge_graph_manager import Entity, Relationship
+from data_ingestion.models import Entity, Relationship, EntityType
 
 logger = logging.getLogger(__name__)
 
@@ -382,17 +388,22 @@ class TextProcessor:
             
             # Extract named entities
             for ent in doc.ents:
-                entity_id = f"{ent.label_}:{ent.text}".lower().replace(" ", "_")
+                # Create more unique entity ID by including position and chunk info
+                entity_id = f"{ent.label_}:{ent.text}:{ent.start_char}:{chunk_uuid[:8]}".lower().replace(" ", "_")
+                
+                # Map spaCy entity labels to our EntityType enum
+                entity_type = self._map_spacy_label_to_entity_type(ent.label_)
+                
                 entity = Entity(
                     id=entity_id,
-                    type=ent.label_,
+                    entity_type=entity_type,
                     name=ent.text,
                     properties={
                         'start_char': ent.start_char,
                         'end_char': ent.end_char,
                         'confidence': getattr(ent, 'confidence', 1.0)
                     },
-                    source_chunks=[chunk_uuid]
+                    source_chunks=[uuid.UUID(chunk_uuid)]
                 )
                 entities.append(entity)
             
@@ -405,6 +416,32 @@ class TextProcessor:
         
         return entities, relationships
     
+    def _map_spacy_label_to_entity_type(self, spacy_label: str) -> EntityType:
+        """Map spaCy entity labels to our EntityType enum."""
+        # Common spaCy entity labels to our EntityType mapping
+        mapping = {
+            'PERSON': EntityType.PERSON,
+            'ORG': EntityType.ORGANIZATION,
+            'GPE': EntityType.LOCATION,  # Geopolitical entity
+            'LOC': EntityType.LOCATION,
+            'EVENT': EntityType.EVENT,
+            'PRODUCT': EntityType.TECHNOLOGY,
+            'LANGUAGE': EntityType.TECHNOLOGY,
+            'NORP': EntityType.ORGANIZATION,  # Nationalities or religious groups
+            'FAC': EntityType.LOCATION,  # Facilities
+            'WORK_OF_ART': EntityType.CONCEPT,
+            'LAW': EntityType.CONCEPT,
+            'MONEY': EntityType.CONCEPT,
+            'PERCENT': EntityType.CONCEPT,
+            'DATE': EntityType.CONCEPT,
+            'TIME': EntityType.CONCEPT,
+            'QUANTITY': EntityType.CONCEPT,
+            'ORDINAL': EntityType.CONCEPT,
+            'CARDINAL': EntityType.CONCEPT,
+        }
+        
+        return mapping.get(spacy_label, EntityType.OTHER)
+    
     def _extract_simple_relationships(self, doc, entities: List[Entity], chunk_uuid: str) -> List[Relationship]:
         """Extract simple relationships between entities."""
         relationships = []
@@ -416,6 +453,10 @@ class TextProcessor:
             # Look for entities that appear close to each other
             for i, ent1 in enumerate(entities):
                 for ent2 in entities[i+1:]:
+                    # Skip if entities are the same (prevent self-referencing)
+                    if ent1.id == ent2.id:
+                        continue
+                        
                     # Calculate distance between entities in text
                     pos1 = ent1.properties.get('start_char', 0)
                     pos2 = ent2.properties.get('start_char', 0)
@@ -431,7 +472,7 @@ class TextProcessor:
                                 'distance': distance,
                                 'confidence': 0.5
                             },
-                            source_chunks=[chunk_uuid]
+                            source_chunks=[uuid.UUID(chunk_uuid)]
                         )
                         relationships.append(relationship)
             
