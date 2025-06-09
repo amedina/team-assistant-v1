@@ -113,7 +113,7 @@ class KnowledgeGraphRetriever:
             WHERE {where_clause}
             RETURN e.id as id, e.entity_type as entity_type, e.name as name,
                    e.description as description, e.source_chunks as source_chunks,
-                   e.confidence_score as confidence_score
+                   COALESCE(e.confidence_score, 1.0) as confidence_score
             ORDER BY e.name
             LIMIT $limit
             """
@@ -133,9 +133,16 @@ class KnowledgeGraphRetriever:
                             except ValueError:
                                 continue
                     
+                    # Handle entity_type conversion safely
+                    try:
+                        entity_type = EntityType(record['entity_type'])
+                    except (ValueError, TypeError):
+                        self.logger.warning(f"Invalid entity type '{record['entity_type']}' for entity {record['id']}")
+                        continue
+                    
                     entity = Entity(
                         id=record['id'],
-                        entity_type=EntityType(record['entity_type']),
+                        entity_type=entity_type,
                         name=record['name'],
                         description=record['description'],
                         properties={},  # Properties not fetched in basic query for performance
@@ -178,7 +185,7 @@ class KnowledgeGraphRetriever:
                     WHERE e.id IN $entity_ids
                     RETURN e.id as id, e.entity_type as entity_type, e.name as name,
                            e.description as description, e.source_chunks as source_chunks,
-                           e.confidence_score as confidence_score
+                           COALESCE(e.confidence_score, 1.0) as confidence_score
                 """, entity_ids=entity_ids)
                 
                 records = await result.data()
@@ -193,9 +200,16 @@ class KnowledgeGraphRetriever:
                             except ValueError:
                                 continue
                     
+                    # Handle entity_type conversion safely
+                    try:
+                        entity_type = EntityType(record['entity_type'])
+                    except (ValueError, TypeError):
+                        self.logger.warning(f"Invalid entity type '{record['entity_type']}' for entity {record['id']}")
+                        continue
+                    
                     entity = Entity(
                         id=record['id'],
-                        entity_type=EntityType(record['entity_type']),
+                        entity_type=entity_type,
                         name=record['name'],
                         description=record['description'],
                         properties={},
@@ -232,7 +246,7 @@ class KnowledgeGraphRetriever:
                     WHERE ANY(chunk IN e.source_chunks WHERE chunk IN $chunk_uuids)
                     RETURN e.id as id, e.entity_type as entity_type, e.name as name,
                            e.description as description, e.source_chunks as source_chunks,
-                           e.confidence_score as confidence_score
+                           COALESCE(e.confidence_score, 1.0) as confidence_score
                 """, chunk_uuids=chunk_strings)
                 
                 records = await result.data()
@@ -249,9 +263,16 @@ class KnowledgeGraphRetriever:
                             except ValueError:
                                 continue
                     
+                    # Handle entity_type conversion safely
+                    try:
+                        entity_type = EntityType(record['entity_type'])
+                    except (ValueError, TypeError):
+                        self.logger.warning(f"Invalid entity type '{record['entity_type']}' for entity {record['id']}")
+                        continue
+                    
                     entity = Entity(
                         id=record['id'],
-                        entity_type=EntityType(record['entity_type']),
+                        entity_type=entity_type,
                         name=record['name'],
                         description=record['description'],
                         properties={},
@@ -302,7 +323,7 @@ class KnowledgeGraphRetriever:
                            r.relationship_type as relationship_type,
                            r.description as description,
                            r.source_chunks as source_chunks,
-                           r.confidence_score as confidence_score
+                           COALESCE(r.confidence_score, 1.0) as confidence_score
                 """, entity_ids=entity_ids)
                 
                 records = await result.data()
@@ -424,8 +445,8 @@ class KnowledgeGraphRetriever:
                     WHERE e.entity_type = $entity_type
                     RETURN e.id as id, e.entity_type as entity_type, e.name as name,
                            e.description as description, e.source_chunks as source_chunks,
-                           e.confidence_score as confidence_score
-                    ORDER BY e.confidence_score DESC, e.name
+                           COALESCE(e.confidence_score, 1.0) as confidence_score
+                    ORDER BY COALESCE(e.confidence_score, 1.0) DESC, e.name
                     LIMIT $limit
                 """, entity_type=entity_type.value, limit=limit)
                 
@@ -441,9 +462,16 @@ class KnowledgeGraphRetriever:
                             except ValueError:
                                 continue
                     
+                    # Handle entity_type conversion safely
+                    try:
+                        entity_type_val = EntityType(record['entity_type'])
+                    except (ValueError, TypeError):
+                        self.logger.warning(f"Invalid entity type '{record['entity_type']}' for entity {record['id']}")
+                        continue
+                    
                     entity = Entity(
                         id=record['id'],
-                        entity_type=EntityType(record['entity_type']),
+                        entity_type=entity_type_val,
                         name=record['name'],
                         description=record['description'],
                         properties={},

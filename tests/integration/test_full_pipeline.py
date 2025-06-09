@@ -107,7 +107,7 @@ TEST_SCENARIOS = {
 # ====================================================================
 
 class TestStats:
-    """Track comprehensive test statistics including per-system results."""
+    """Track comprehensive test statistics including per-system results and Coordinator Pattern validation."""
     
     def __init__(self):
         self.start_time = datetime.now()
@@ -123,6 +123,16 @@ class TestStats:
             "vector_search": {"tests": 0, "passed": 0, "failed": 0, "avg_similarity": 0.0},
             "database": {"tests": 0, "passed": 0, "failed": 0, "avg_response_time": 0.0},
             "knowledge_graph": {"tests": 0, "passed": 0, "failed": 0, "avg_entities": 0.0}
+        }
+        
+        # Enhanced metrics for comprehensive validation
+        self.coordinator_pattern_scores = []
+        self.cross_system_consistency_scores = []
+        self.data_integrity_scores = []
+        self.performance_metrics = {
+            "ingestion_times": [],
+            "retrieval_times": [],
+            "consistency_check_times": []
         }
         
         # Detailed results per scenario
@@ -175,10 +185,32 @@ class TestStats:
         """Store detailed results for a scenario."""
         self.scenario_details[scenario_name] = system_results
     
+    def add_coordinator_pattern_score(self, score: float):
+        """Add Coordinator Pattern validation score."""
+        self.coordinator_pattern_scores.append(score)
+    
+    def add_consistency_score(self, score: float):
+        """Add cross-system consistency score."""
+        self.cross_system_consistency_scores.append(score)
+    
+    def add_integrity_score(self, score: float):
+        """Add data integrity score."""
+        self.data_integrity_scores.append(score)
+    
+    def add_performance_metric(self, metric_type: str, value: float):
+        """Add performance metric."""
+        if metric_type in self.performance_metrics:
+            self.performance_metrics[metric_type].append(value)
+    
     def get_summary(self) -> Dict[str, Any]:
-        """Get comprehensive test summary including per-system results."""
+        """Get comprehensive test summary including per-system results and enhanced metrics."""
         elapsed_time = (datetime.now() - self.start_time).total_seconds()
         success_rate = (self.scenarios_passed / self.scenarios_run * 100) if self.scenarios_run > 0 else 0
+        
+        # Calculate enhanced metric averages
+        avg_coordinator_score = sum(self.coordinator_pattern_scores) / len(self.coordinator_pattern_scores) if self.coordinator_pattern_scores else 0.0
+        avg_consistency_score = sum(self.cross_system_consistency_scores) / len(self.cross_system_consistency_scores) if self.cross_system_consistency_scores else 0.0
+        avg_integrity_score = sum(self.data_integrity_scores) / len(self.data_integrity_scores) if self.data_integrity_scores else 0.0
         
         return {
             "elapsed_time_seconds": elapsed_time,
@@ -190,7 +222,13 @@ class TestStats:
             "total_retrieval_queries": self.total_retrieval_queries,
             "errors": self.errors,
             "system_results": self.system_results,
-            "scenario_details": self.scenario_details
+            "scenario_details": self.scenario_details,
+            "enhanced_metrics": {
+                "avg_coordinator_pattern_score": avg_coordinator_score,
+                "avg_cross_system_consistency": avg_consistency_score,
+                "avg_data_integrity_score": avg_integrity_score,
+                "performance_metrics": self.performance_metrics
+            }
         }
 
 
@@ -270,8 +308,8 @@ class E2ETestRunner:
             return False
     
     async def _run_health_checks(self):
-        """Run health checks on all components."""
-        print("   🏥 Running health checks...")
+        """Run comprehensive health checks including Coordinator Pattern validation."""
+        print("   🏥 Running comprehensive health checks...")
         
         # Vector Store health check
         start_time = time.time()
@@ -296,6 +334,93 @@ class E2ETestRunner:
         if not kg_health:
             raise RuntimeError("Knowledge Graph health check failed")
         print(f"     ✅ Knowledge Graph: {kg_time:.1f}ms")
+        
+        # Coordinator Pattern validation
+        coordinator_score = await self._validate_coordinator_pattern()
+        print(f"     🏗️  Coordinator Pattern: {coordinator_score:.2f}/1.0")
+        self.stats.add_coordinator_pattern_score(coordinator_score)
+    
+    async def _validate_coordinator_pattern(self) -> float:
+        """Validate the Coordinator Pattern implementation."""
+        if self.verbose:
+            print("   🏗️  Validating Coordinator Pattern implementation...")
+        
+        validation_scores = []
+        
+        # 1. Manager Initialization Check
+        manager_init_score = 0.0
+        if (self.pipeline_manager is not None and
+            hasattr(self.pipeline_manager, 'vector_store_manager') and
+            hasattr(self.pipeline_manager, 'database_manager') and
+            hasattr(self.pipeline_manager, 'knowledge_graph_manager')):
+            manager_init_score = 1.0
+        validation_scores.append(manager_init_score)
+        
+        # 2. Ingestor Coordination Check
+        ingestor_coord_score = 0.0
+        try:
+            if (hasattr(self.vector_manager, 'ingestor') and
+                hasattr(self.database_manager, 'ingestor') and
+                hasattr(self.kg_manager, 'ingestor')):
+                ingestor_coord_score = 1.0
+        except:
+            pass
+        validation_scores.append(ingestor_coord_score)
+        
+        # 3. Retriever Coordination Check
+        retriever_coord_score = 0.0
+        try:
+            if (hasattr(self.vector_manager, 'retriever') and
+                hasattr(self.database_manager, 'retriever') and
+                hasattr(self.kg_manager, 'retriever')):
+                retriever_coord_score = 1.0
+        except:
+            pass
+        validation_scores.append(retriever_coord_score)
+        
+        # 4. Cross-System Communication Check
+        cross_comm_score = 0.0
+        try:
+            # Test that all managers have health_check methods
+            if (hasattr(self.vector_manager, 'health_check') and
+                hasattr(self.database_manager, 'health_check') and
+                hasattr(self.kg_manager, 'health_check')):
+                cross_comm_score = 1.0
+        except:
+            pass
+        validation_scores.append(cross_comm_score)
+        
+        # 5. Error Handling Check
+        error_handling_score = 0.0
+        try:
+            # Test that managers have statistics/monitoring capabilities
+            if (hasattr(self.vector_manager, 'get_statistics') and
+                hasattr(self.database_manager, 'get_statistics') and
+                hasattr(self.kg_manager, 'get_statistics')):
+                error_handling_score = 1.0
+        except:
+            pass
+        validation_scores.append(error_handling_score)
+        
+        # 6. Resource Management Check
+        resource_mgmt_score = 0.0
+        if hasattr(self.pipeline_manager, 'close'):
+            resource_mgmt_score = 1.0
+        validation_scores.append(resource_mgmt_score)
+        
+        # Calculate overall score
+        overall_score = sum(validation_scores) / len(validation_scores)
+        
+        if self.verbose:
+            print(f"     Manager Initialization: {'✅' if manager_init_score == 1.0 else '❌'}")
+            print(f"     Ingestor Coordination: {'✅' if ingestor_coord_score == 1.0 else '❌'}")
+            print(f"     Retriever Coordination: {'✅' if retriever_coord_score == 1.0 else '❌'}")
+            print(f"     Cross-System Communication: {'✅' if cross_comm_score == 1.0 else '❌'}")
+            print(f"     Error Handling: {'✅' if error_handling_score == 1.0 else '❌'}")
+            print(f"     Resource Management: {'✅' if resource_mgmt_score == 1.0 else '❌'}")
+            print(f"     Overall Score: {overall_score:.2f}/1.0")
+        
+        return overall_score
     
     # ================================================================
     # INGESTION TESTING

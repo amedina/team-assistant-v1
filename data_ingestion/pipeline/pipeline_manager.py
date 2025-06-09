@@ -513,8 +513,8 @@ class PipelineManager:
         
         return stats
     
-    async def cleanup(self):
-        """Clean up pipeline resources using coordinator pattern."""
+    async def close(self):
+        """Close pipeline and clean up all resources using coordinator pattern."""
         try:
             if self.vector_store_manager:
                 await self.vector_store_manager.close()
@@ -529,4 +529,8 @@ class PipelineManager:
             self.logger.info("Pipeline cleanup completed")
             
         except Exception as e:
-            self.logger.error(f"Error during pipeline cleanup: {e}") 
+            self.logger.error(f"Error during pipeline cleanup: {e}")
+    
+    async def cleanup(self):
+        """Clean up pipeline resources using coordinator pattern. (Alias for close())"""
+        await self.close() 

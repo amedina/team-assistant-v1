@@ -90,8 +90,9 @@ class CloudStorageBucketRetriever:
 1. **Query Processing**: User query → Query embedding generation
 2. **Vector Search**: Similarity search with configurable filters  
 3. **PostgreSQL Lookup**: Batch retrieve rich metadata by UUIDs
-4. **Context Augmentation**: Combine vector scores with metadata
-5. **LLM Prompt Construction**: Structure context for AI response
+4. **KnowledgeGraph Search**: Retrieve entities and relations for vector search results
+5. **Context Augmentation**: Combine results from Vector, DB, KG, metadata
+6. **LLM Prompt Construction**: Structure context for AI response
 
 ---
 

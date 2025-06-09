@@ -395,6 +395,56 @@ class DatabaseManager:
         chunk_uuids = [str(chunk.chunk_uuid) for chunk in chunks]
         return await self.retriever.enrich_chunks_with_metadata(chunk_uuids, vector_scores)
     
+    async def get_recent_chunks(self, limit: int = 100) -> List[ChunkData]:
+        """
+        Get the most recently ingested chunks, ordered by ingestion timestamp.
+        
+        Args:
+            limit: Maximum number of chunks to return
+            
+        Returns:
+            List of ChunkData objects ordered by most recent first
+        """
+        if not self._initialized:
+            raise RuntimeError("DatabaseManager not initialized. Call initialize() first.")
+        
+        try:
+            query = """
+                SELECT chunk_uuid, source_type, source_identifier, 
+                       chunk_text_summary, chunk_metadata, ingestion_timestamp,
+                       source_last_modified_at, source_content_hash, 
+                       last_indexed_at, ingestion_status
+                FROM document_chunks
+                ORDER BY ingestion_timestamp DESC
+                LIMIT $1
+            """
+            
+            async with self.get_connection() as conn:
+                rows = await conn.fetch(query, limit)
+                
+                chunks = []
+                for row in rows:
+                    chunk_data = ChunkData(
+                        chunk_uuid=row['chunk_uuid'],
+                        source_type=row['source_type'],
+                        source_identifier=row['source_identifier'],
+                        chunk_text_summary=row['chunk_text_summary'],
+                        chunk_metadata=row['chunk_metadata'] or {},
+                        ingestion_timestamp=row['ingestion_timestamp'],
+                        source_last_modified_at=row['source_last_modified_at'],
+                        source_content_hash=row['source_content_hash'],
+                        last_indexed_at=row['last_indexed_at'],
+                        ingestion_status=row['ingestion_status']
+                    )
+                    chunks.append(chunk_data)
+                
+                self.logger.debug(f"Retrieved {len(chunks)} recent chunks")
+                return chunks
+                
+        except Exception as e:
+            self.logger.error(f"Error retrieving recent chunks: {e}")
+            return []
+    
     # =================================================================
     # ANALYTICS AND MONITORING METHODS
     # =================================================================
@@ -498,7 +548,17 @@ class DatabaseManager:
                 await self.retriever.close()
             
             if self._connector:
-                await self._connector.close()
+                try:
+                    # Use asyncio timeout to prevent hanging
+                    await asyncio.wait_for(self._connector.close(), timeout=5.0)
+                except asyncio.TimeoutError:
+                    self.logger.warning("Cloud SQL connector close timed out - this is expected in some environments")
+                except Exception as e:
+                    # Some Cloud SQL connector async cleanup issues are expected
+                    if "attached to a different loop" in str(e):
+                        self.logger.debug(f"Cloud SQL connector cleanup issue (expected): {e}")
+                    else:
+                        self.logger.warning(f"Cloud SQL connector cleanup warning: {e}")
             
             self._initialized = False
             self.logger.info("DatabaseManager closed successfully")

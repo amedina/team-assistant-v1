@@ -8,9 +8,9 @@ project_config:
 
 pipeline_config:
   # 🔥 Vertex AI vector index and gs bucket
-  vector_search_index: "2585233311878086656"
-  vector_search_endpoint: "projects/267266051209/locations/us-west1/indexEndpoints/6568702366659379200"  
-  vector_search_bucket: "gs://gs-team-assistant-cm-v1"
+  vector_search_index: "1542649998141816832"
+  vector_search_endpoint: "projects/267266051209/locations/us-west1/indexEndpoints/4024168577195048960"  
+  vector_search_bucket: "gs://gs-team-assistant-cm-v2"
   chunk_size: 800
   chunk_overlap: 100
   embedding_model: "text-embedding-005"
@@ -177,3 +177,16 @@ data_sources:
         - "aside"
         - ".page-navigation"
       user_agent: "DevRel-Assistant/1.0 (Documentation Reader)" 
+  
+  - source_id: test-drive_file
+    source_type: drive_file
+    access_level: "global"
+    description: Test individual Google Drive file
+    enabled: true
+    config:
+      file_types:
+      - google_doc
+      - pdf
+      - text
+      file_id: "1YFOl19kCN782a-cJF_1LQHcIppcpKzHhsy_y0rr4Ro4"  # Replace with actual file ID
+      max_file_size_mb: 50

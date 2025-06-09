@@ -20,9 +20,9 @@ pipeline_config:
   db_pass: "AMkk2012;AMkk2012"
   
   # Vector search settings
-  vector_search_index: "2585233311878086656"
-  vector_search_endpoint: "projects/267266051209/locations/us-west1/indexEndpoints/6568702366659379200"
-  vector_search_bucket: "gs://gs-team-assistant-cm-v1"
+  vector_search_index: "1542649998141816832"
+  vector_search_endpoint: "projects/267266051209/locations/us-west1/indexEndpoints/4024168577195048960"  
+  vector_search_bucket: "gs://gs-team-assistant-cm-v2"
   
   # Neo4j settings  
   neo4j_uri: "neo4j://nyx.gagan.pro"
