@@ -424,12 +424,22 @@ class DatabaseManager:
                 
                 chunks = []
                 for row in rows:
+                    # Parse JSON metadata if it's a string
+                    metadata = row['chunk_metadata'] or {}
+                    if isinstance(metadata, str):
+                        try:
+                            import json
+                            metadata = json.loads(metadata)
+                        except (json.JSONDecodeError, TypeError):
+                            self.logger.warning(f"Failed to parse metadata for chunk {row['chunk_uuid']}: {metadata}")
+                            metadata = {}
+                    
                     chunk_data = ChunkData(
                         chunk_uuid=row['chunk_uuid'],
                         source_type=row['source_type'],
                         source_identifier=row['source_identifier'],
                         chunk_text_summary=row['chunk_text_summary'],
-                        chunk_metadata=row['chunk_metadata'] or {},
+                        chunk_metadata=metadata,
                         ingestion_timestamp=row['ingestion_timestamp'],
                         source_last_modified_at=row['source_last_modified_at'],
                         source_content_hash=row['source_content_hash'],
@@ -542,15 +552,17 @@ class DatabaseManager:
     async def close(self):
         """Close manager and clean up database resources."""
         try:
+            # Close specialized components first
             if self.ingestor:
                 await self.ingestor.close()
             if self.retriever:
                 await self.retriever.close()
             
+            # Close the Cloud SQL connector with proper cleanup
             if self._connector:
                 try:
                     # Use asyncio timeout to prevent hanging
-                    await asyncio.wait_for(self._connector.close(), timeout=5.0)
+                    await asyncio.wait_for(self._connector.close(), timeout=10.0)
                 except asyncio.TimeoutError:
                     self.logger.warning("Cloud SQL connector close timed out - this is expected in some environments")
                 except Exception as e:
@@ -560,7 +572,24 @@ class DatabaseManager:
                     else:
                         self.logger.warning(f"Cloud SQL connector cleanup warning: {e}")
             
+            # Give aiohttp sessions time to clean up properly
+            try:
+                await asyncio.sleep(0.5)  # Give sessions time to close
+                
+                # Force garbage collection to help close any lingering sessions
+                import gc
+                gc.collect()
+                
+                # Additional small delay for session cleanup
+                await asyncio.sleep(0.1)
+                
+            except Exception as e:
+                self.logger.debug(f"Cleanup delay issue (expected): {e}")
+            
+            # Clear references
+            self._connector = None
             self._initialized = False
+            
             self.logger.info("DatabaseManager closed successfully")
             
         except Exception as e:
