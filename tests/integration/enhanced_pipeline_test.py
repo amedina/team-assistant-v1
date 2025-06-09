@@ -1448,13 +1448,27 @@ class EnhancedE2ETestRunner:
                 diagnostics["issues_found"].append("Vector count is null - index may be empty or metadata unavailable")
                 diagnostics["recommendations"].append("Check if vectors are being stored in the correct index")
             
-            # Check for project ID mismatches
+            # Check for project ID mismatches (handle project ID vs project number equivalence)
             ingestor_project = diagnostics.get("ingestor_config", {}).get("project_id")
             endpoint_resource = diagnostics.get("retriever_config", {}).get("endpoint_resource_name", "")
             if ingestor_project and endpoint_resource:
-                if ingestor_project not in endpoint_resource:
-                    diagnostics["issues_found"].append(f"Project mismatch: Ingestor uses '{ingestor_project}' but endpoint is in different project")
-                    diagnostics["recommendations"].append("Ensure ingestor and retriever use the same project configuration")
+                # Extract project from endpoint resource name (format: projects/{project}/locations/...)
+                import re
+                endpoint_project_match = re.search(r'projects/([^/]+)', endpoint_resource)
+                endpoint_project = endpoint_project_match.group(1) if endpoint_project_match else None
+                
+                # Check if they're different projects (allowing for project ID vs project number)
+                # Note: Google Cloud project numbers and project IDs refer to the same project
+                if endpoint_project and ingestor_project != endpoint_project:
+                    # Only flag as mismatch if neither project ID nor project number match
+                    # This avoids false positives when comparing project ID vs project number
+                    if not (ingestor_project.isdigit() or endpoint_project.isdigit()):
+                        # Both are non-numeric (likely project IDs), so they should match
+                        diagnostics["issues_found"].append(f"Project mismatch: Ingestor uses '{ingestor_project}' but endpoint uses '{endpoint_project}'")
+                        diagnostics["recommendations"].append("Ensure ingestor and retriever use the same project configuration")
+                    else:
+                        # One is numeric (project number) and one isn't (project ID) - this is normal
+                        diagnostics["recommendations"].append(f"Note: Ingestor uses project ID '{ingestor_project}' while endpoint uses project number '{endpoint_project}' - this is normal if they refer to the same Google Cloud project")
             
             # Estimate indexing lag
             print("   ⏰ Checking for indexing delays...")
@@ -1462,7 +1476,16 @@ class EnhancedE2ETestRunner:
             if recent_chunks:
                 latest_ingestion = max(chunk.ingestion_timestamp for chunk in recent_chunks)
                 import datetime as dt
-                time_since_ingestion = (dt.datetime.now() - latest_ingestion).total_seconds()
+                from datetime import timezone
+                
+                # Use timezone-aware datetime for comparison
+                now_utc = dt.datetime.now(timezone.utc)
+                
+                # Ensure latest_ingestion is timezone-aware (convert if needed)
+                if latest_ingestion.tzinfo is None:
+                    latest_ingestion = latest_ingestion.replace(tzinfo=timezone.utc)
+                
+                time_since_ingestion = (now_utc - latest_ingestion).total_seconds()
                 print(f"   📊 Latest ingestion: {time_since_ingestion:.1f}s ago")
                 
                 if time_since_ingestion < 300:  # Less than 5 minutes
