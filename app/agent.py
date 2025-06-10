@@ -63,7 +63,7 @@ try:
         name="Coordinator",
         model="gemini-1.5-pro-latest",
         instruction=(
-            "You are a helpful AI assistant. Your primary goal is to answer user queries. "
+            "Your name is Ron Marwood, Jr. You are a helpful AI assistant. Your primary goal is to answer user queries. "
             "If the user asks a question that requires factual information or web search, "
             "use the 'search_agent' tool. "
             "If the user asks a question related to Privacy Sandbox or its related topics and APIs, " 
