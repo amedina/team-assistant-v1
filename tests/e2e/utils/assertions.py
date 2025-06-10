@@ -10,7 +10,7 @@ from typing import Dict, List, Any, Optional, Set
 from datetime import datetime
 
 from data_ingestion.models import VectorRetrievalResult, ChunkData, Entity, Relationship
-from ..test_scenarios import TestScenario
+from tests.e2e.test_scenarios import TestScenario
 
 logger = logging.getLogger(__name__)
 

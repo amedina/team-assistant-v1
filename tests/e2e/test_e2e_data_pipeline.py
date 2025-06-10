@@ -28,14 +28,14 @@ from data_ingestion.models import (
 from data_ingestion.connectors.base_connector import SourceDocument
 
 # Import our E2E test modules
-from .test_scenarios import TestScenario, get_test_scenario, get_all_scenarios, TestPhase
-from .fixtures.configuration import *
-from .fixtures.managers import *
-from .fixtures.test_data import *
-from .utils.assertions import *
-from .utils.reporting import get_reporter, TestMetrics
-from .fixtures.custom_assertions import assert_pipeline_health, assert_ingestion_success, assert_retrieval_quality
-from .utils.e2e_reporter import E2ETestReporter
+from tests.e2e.test_scenarios import TestScenario, get_test_scenario, get_all_scenarios, TestPhase
+from tests.e2e.fixtures.configuration import *
+from tests.e2e.fixtures.managers import *
+from tests.e2e.fixtures.test_data import *
+from tests.e2e.utils.assertions import *
+from tests.e2e.utils.reporting import get_reporter, TestMetrics
+from tests.e2e.fixtures.custom_assertions import assert_pipeline_health, assert_ingestion_success, assert_retrieval_quality
+from tests.e2e.utils.e2e_reporter import E2ETestReporter
 
 logger = logging.getLogger(__name__)
 

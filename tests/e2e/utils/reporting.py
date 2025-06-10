@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass, asdict
 from pathlib import Path
 
-from ..test_scenarios import TestScenario
+from tests.e2e.test_scenarios import TestScenario
 
 logger = logging.getLogger(__name__)
 

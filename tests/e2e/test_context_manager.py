@@ -20,9 +20,9 @@ from data_ingestion.models import (
     IngestionStatus, VectorRetrievalResult, RetrievalContext, LLMRetrievalContext,
     DatabaseRetrievalResult, GraphContext, ComponentHealth
 )
-from .fixtures.custom_assertions import assert_retrieval_quality, assert_context_completeness
-from .utils.e2e_reporter import E2ETestReporter
-from .test_scenarios import TestScenario
+from tests.e2e.fixtures.custom_assertions import assert_retrieval_quality, assert_context_completeness
+from tests.e2e.utils.e2e_reporter import E2ETestReporter
+from tests.e2e.test_scenarios import TestScenario
 
 logger = logging.getLogger(__name__)
 

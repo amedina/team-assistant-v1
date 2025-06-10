@@ -11,7 +11,7 @@ from typing import Dict, Any, Optional
 from pathlib import Path
 
 from config.configuration import SystemConfig, get_system_config, get_config_manager
-from ..test_scenarios import TestScenario, create_data_source_config
+from tests.e2e.test_scenarios import TestScenario, create_data_source_config
 
 logger = logging.getLogger(__name__)
 

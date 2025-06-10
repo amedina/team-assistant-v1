@@ -21,7 +21,7 @@ from data_ingestion.models import (
     ChunkData, EmbeddingData, Entity, Relationship, EntityType, SourceType,
     IngestionStatus, ChunkMetadata
 )
-from ..test_scenarios import TestScenario
+from tests.e2e.test_scenarios import TestScenario
 
 logger = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ def test_scenario(request) -> TestScenario:
     scenario_name = getattr(request, 'param', 'github')
     
     # Import scenarios here to avoid circular imports
-    from ..test_scenarios import get_test_scenario
+    from tests.e2e.test_scenarios import get_test_scenario
     
     scenario = get_test_scenario(scenario_name)
     if not scenario:
