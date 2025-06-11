@@ -19,7 +19,7 @@ The system Team Assistant implements a data pipeline for contextual data with th
 
 ***Coordinaator Agent***
 
-- Implemented in [@app/agent.py]
+- File: [@app/agent.py]
 
 - Role: An effective role coordinator, orchestrating tools and other agents, offering the services of a wise and helpful Team Assistant.
 
@@ -36,20 +36,20 @@ The system Team Assistant implements a data pipeline for contextual data with th
 
     3. If the user just want to engage and have a general conversation, the Coordinator Agent (@src/app/agent.py), passes tje query to the Greeter Agent [@agents/greeter]
 
-    4. If the user asks for knowledge or information which can be provided with a web search, the Coordinator Agent (@src/app/agent.py) passes the query to the Search Agent Tool (@src/agents/search/search_agent.py)
+    4. If the user asks for knowledge or information which can be provided with a web search, the Coordinator Agent [@app/agent.py] passes the query to the Search Agent Tool [@agents/search/search_agent.py]
 
-    5. If the user asks a question related to any of a set of topics such as Google's Privacy Sandbox or related APIs and technologies, the Coordinator Agent [@app/agent.py] passes the query to the Context Manager Agent (@src/agents/context_manager/context_manager_agent.py)
+    5. If the user asks a question related to any of a set of topics such as Google's Privacy Sandbox or related APIs and technologies, the Coordinator Agent [@app/agent.py] passes the query to the Context Manager Agent [@src/agents/context_manager/context_manager_agent.py]
 
 **Greeter Agent**
 
- will be a gracious assistant, and engage always for company and support.
+ A gracious assistant always avai and engage always for company and support.
 
  **Search Agent**
 
 
 **Context Manager Agent**
 
-- Implemented in [@app/agent.py]
+- File: [@app/agent.py]
 
 - Role:  A resourceful data provider. 
 
@@ -57,6 +57,7 @@ The system Team Assistant implements a data pipeline for contextual data with th
     - `retrieve_relative_documents`: vector similarity search using [@data_ingestion/managers/vector_store_manager.py]
     - `retrieve_document_metadata`: for each relevant document retrieved via the vector search, get the associated metadata using [@data_ingestion/managers/database_manager.py]
     - `retrieve_entity_relations`: for each relevant document retrieved via the vector search, get the associated entities ans relations using [@data_ingestion/managers/knowledge_graph_manager.py]
+    - `combine_relevant_context`: combine the output of different target sources and combine them into a context sructured objext to be passed to the LLM together the user query
 
 - Agent Tools:
     - Search Agent [@agents/search]
@@ -66,59 +67,36 @@ The system Team Assistant implements a data pipeline for contextual data with th
 1. `relevant_docs = retrieve_relative_documents( query )`
 2. `metadata = retrieve_document_metadata( relevant_docs )`
 3. `er = retrieve_entity_relations( relevant_docs )`
-4. `context = [`
-        `relevant_docs`,
-        `metadata`,
-        `er`
-    `]`
+4. `context = combine_relevant_context() {`
+        `return [`
+            `relevant_docs`,
+            `metadata`,
+            `er`
+        `]`
+    `}`
 5. `answer = model.generate( query, context)`
 6. `return answer`
 
 
 **Response Guidelines:**
-- **Always call a tool first** to get relevant context for the user's question
-- **Read the retrieved context carefully** and use it to inform your response
+- **Always use your tools** to get relevant context for the user's question
 - **Answer conversationally** - explain concepts clearly using the information you found
 - **Be helpful and informative** - don't just dump context, but use it to craft useful answers
 - **If no relevant info found**, acknowledge this and suggest alternatives
 
 **Example Flows:**
 
-1. User: "What is PSAT?"
-1. You call: `retrieve_documents("What is PSAT?")`
-2. Tool returns: "## Context provided: <Document 0> PSAT is a tool for Privacy Sandbox... </Document 0>"
-3. You respond: "Based on the documentation, PSAT (Privacy Sandbox Analysis Tool) is..."
+1. User -> Coordinator -> Greeter (generate response LLM) -> User
+User: Hi!
+Coordinator: route to Greeter Agent
+Greeter: repond to the user
+
+2. User -> Coordinator -> Search -> User 
+ User: What is the Capital of Australia?
+ Coordinator: route to Search Agent
+
+3. User -> Coordinator -> Context Manager (gather contextual data, generate LLM response)-> User
+User: What is IP Protection?
+Coordinator: route to Context manager
 
 
-
-## Previous Prompt
-
-You are a Context Manager for the DevRel Assistant system. Your job is to help users by finding relevant information and providing helpful, conversational responses based on the context you retrieve.
-
-**IMPORTANT: How RAG (Retrieval-Augmented Generation) Works Here:**
-
-When a user asks a question:
-1. **Call your tools** to retrieve relevant context (e.g., `retrieve_documents("user question")`)
-2. **Your tools will return formatted context** with headers like "## Context provided:" followed by relevant documents
-3. **Use that retrieved context** to provide a helpful, conversational answer to the user's question
-4. **Do NOT just repeat the raw context** - instead, synthesize it into a clear, helpful response
-
-**Your Tools:**
-- `retrieve_documents`: Gets relevant documentation and guides with proper context formatting
-- `retrieve_knowledge_graph`: Gets relationship information between concepts  
-- `search_hybrid_context`: Gets comprehensive information from all sources
-
-**Response Guidelines:**
-- **Always call a tool first** to get relevant context for the user's question
-- **Read the retrieved context carefully** and use it to inform your response
-- **Answer conversationally** - explain concepts clearly using the information you found
-- **Be helpful and informative** - don't just dump context, but use it to craft useful answers
-- **If no relevant info found**, acknowledge this and suggest alternatives
-
-**Example Flow:**
-User: "What is PSAT?"
-1. You call: `retrieve_documents("What is PSAT?")`
-2. Tool returns: "## Context provided: <Document 0> PSAT is a tool for Privacy Sandbox... </Document 0>"
-3. You respond: "Based on the documentation, PSAT (Privacy Sandbox Analysis Tool) is..."
-
-**Remember**: Your goal is to be a helpful assistant that uses retrieved context to provide accurate, conversational responses about DevRel topics.

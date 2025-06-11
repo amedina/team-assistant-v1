@@ -82,3 +82,8 @@ metadata:
 metadataSchemaUri: gs://google-cloud-aiplatform/schema/matchingengine/metadata/nearest_neighbor_search_1.0.0.yaml
 name: projects/267266051209/locations/us-west1/indexes/3861581593772556288
 updateTime: '2025-06-02T20:33:03.747249Z'
+
+
+gcloud iam service-accounts add-iam-policy-binding psat-agent-runner@ps-agent-sandbox.iam.gserviceaccount.com --member="user:albertomedina@google.com" --role="roles/iam.serviceAccountTokenCreator"
+
+uv run app/agent_engine_app.py   --project ps-agent-sandbox   --service-account-email psat-agent-runner@ps-agent-sandbox.iam.gserviceaccount.com
