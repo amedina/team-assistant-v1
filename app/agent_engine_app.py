@@ -85,6 +85,7 @@ def deploy_agent_engine_app(
     requirements_file: str = ".requirements.txt",
     extra_packages: list[str] = ["./app"],
     env_vars: dict[str, str] = {},
+    service_account_email: str | None = None,
 ) -> agent_engines.AgentEngine:
     """Deploy the agent engine app to Vertex AI."""
 
@@ -93,7 +94,27 @@ def deploy_agent_engine_app(
     create_bucket_if_not_exists(
         bucket_name=staging_bucket, project=project, location=location
     )
-    vertexai.init(project=project, location=location, staging_bucket=staging_bucket)
+    
+    # Initialize Vertex AI with optional service account
+    if service_account_email:
+        # Use service account impersonation
+        from google.oauth2 import service_account
+        from google.auth import impersonated_credentials
+        
+        source_credentials, _ = google.auth.default()
+        target_credentials = impersonated_credentials.Credentials(
+            source_credentials=source_credentials,
+            target_principal=service_account_email,
+            target_scopes=["https://www.googleapis.com/auth/cloud-platform"],
+        )
+        vertexai.init(
+            project=project, 
+            location=location, 
+            staging_bucket=staging_bucket,
+            credentials=target_credentials
+        )
+    else:
+        vertexai.init(project=project, location=location, staging_bucket=staging_bucket)
 
     # Read requirements
     with open(requirements_file) as f:
@@ -174,6 +195,10 @@ if __name__ == "__main__":
         "--set-env-vars",
         help="Comma-separated list of environment variables in KEY=VALUE format",
     )
+    parser.add_argument(
+        "--service-account-email",
+        help="Service account email for impersonation",
+    )
     args = parser.parse_args()
 
     # Parse environment variables if provided
@@ -201,4 +226,5 @@ if __name__ == "__main__":
         requirements_file=args.requirements_file,
         extra_packages=args.extra_packages,
         env_vars=env_vars,
+        service_account_email=args.service_account_email,
     )

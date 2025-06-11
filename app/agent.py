@@ -35,9 +35,9 @@ from google.adk.tools.agent_tool import AgentTool  # Import AgentTool
 
 # Import your individual agent instances from the new 'agents' folder
 try:
-    from agents.greeter.greeter_agent import greeting_agent
+    from agents.greeter.greeter_agent import greeter_agent
 except Exception as e:
-    logger.error(f"Error importing greeting_agent: {e}")
+    logger.error(f"Error importing greeter_agent: {e}")
 
 try:
     from agents.search.search_agent import search_agent
@@ -51,7 +51,7 @@ except Exception as e:
 
 # Wrap the agents as tools
 logger.info("Creating agent tools...")
-greeting_tool = AgentTool(agent=greeting_agent)
+greeter_tool = AgentTool(agent=greeter_agent)
 search_tool = AgentTool(agent=search_agent)
 context_manager_tool = AgentTool(agent=context_manager_agent)
 logger.info("Agent tools created successfully")
@@ -63,7 +63,7 @@ try:
         name="Coordinator",
         model="gemini-1.5-pro-latest",
         instruction=(
-            "Your name is Ron Marwood, Jr. You are a helpful AI assistant. Your primary goal is to answer user queries. "
+            "Your name is Ron Marwood. You are a helpful AI assistant. Your primary goal is to answer user queries. "
             "If the user asks a question that requires factual information or web search, "
             "use the 'search_agent' tool. "
             "If the user asks a question related to Privacy Sandbox or its related topics and APIs, " 
@@ -74,7 +74,7 @@ try:
             "For other tasks, you can respond directly."
         ),
         description="A top-level agent that coordinates requests and delegates to specialized sub-agents.",
-        tools=[greeting_tool, search_tool, context_manager_tool],  # Use tools instead of sub_agents
+        tools=[greeter_tool, search_tool, context_manager_tool],  # Use tools instead of sub_agents
     )
     logger.info(f"Coordinator agent created successfully with {len(coordinator_agent.tools)} agent tools")
     logger.info(f"Agent tools: {[tool.name for tool in coordinator_agent.tools if hasattr(tool, 'name')]}")
