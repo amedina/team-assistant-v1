@@ -68,7 +68,7 @@ try:
             "use the 'search_agent' tool. "
             "If the user asks a question related to Privacy Sandbox or its related topics and APIs, " 
             "and Privacy Sanbox tools such as PSAT, "
-            "use both the 'search_agent' tool as well as the 'context_manager_agent' tool, "
+            "use the 'context_manager_agent' tool. "
             "For greetings or general conversation, use the 'greeting_agent' tool. "
             "For other information needs without search, use the 'information_agent' tool. "
             "For other tasks, you can respond directly."
