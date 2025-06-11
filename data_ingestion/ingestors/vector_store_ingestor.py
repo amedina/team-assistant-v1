@@ -358,4 +358,23 @@ class VectorStoreIngestor:
     
     async def close(self):
         """Close ingestor and clean up resources."""
+        try:
+            # Force cleanup of any pending aiohttp sessions
+            import gc
+            import warnings
+            
+            # Suppress specific aiohttp warnings during cleanup
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=".*Unclosed client session.*")
+                warnings.filterwarnings("ignore", message=".*Unclosed connector.*")
+                
+                # Force garbage collection to help close lingering HTTP clients
+                gc.collect()
+                
+                # Give any pending async operations time to complete
+                await asyncio.sleep(0.1)
+                
+        except Exception as e:
+            self.logger.debug(f"Ingestor cleanup (expected): {e}")
+        
         self.logger.info(f"VectorStoreIngestor closed. Final stats: {self.get_statistics()}") 

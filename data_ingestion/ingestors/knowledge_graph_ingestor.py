@@ -16,7 +16,7 @@ from datetime import datetime
 import neo4j
 
 from config.configuration import Neo4jConfig
-from ..models import Entity, Relationship, BatchOperationResult
+from ..models import Entity, Relationship, BatchOperationResult, ComponentHealth
 
 logger = logging.getLogger(__name__)
 
@@ -505,6 +505,55 @@ class KnowledgeGraphIngestor:
             ),
             "batch_size": self._batch_size
         }
+    
+    async def health_check(self) -> ComponentHealth:
+        """
+        Check ingestor health and Neo4j connectivity.
+        
+        Returns:
+            ComponentHealth with ingestor status
+        """
+        start_time = datetime.now()
+        
+        try:
+            # Test Neo4j connectivity
+            async with self.driver.session(database=self.config.database) as session:
+                result = await session.run("RETURN 1 as test")
+                record = await result.single()
+                if not record or record['test'] != 1:
+                    raise RuntimeError("Neo4j connectivity test failed")
+            
+            response_time = (datetime.now() - start_time).total_seconds() * 1000
+            
+            return ComponentHealth(
+                component_name="KnowledgeGraphIngestor",
+                is_healthy=True,
+                response_time_ms=response_time,
+                additional_info={
+                    "total_entities_processed": self._total_entities_processed,
+                    "total_entities_successful": self._total_entities_successful,
+                    "total_relationships_processed": self._total_relationships_processed,
+                    "total_relationships_successful": self._total_relationships_successful,
+                    "entity_success_rate": (
+                        self._total_entities_successful / self._total_entities_processed * 100
+                        if self._total_entities_processed > 0 else 0.0
+                    ),
+                    "relationship_success_rate": (
+                        self._total_relationships_successful / self._total_relationships_processed * 100
+                        if self._total_relationships_processed > 0 else 0.0
+                    ),
+                    "batch_size": self._batch_size
+                }
+            )
+            
+        except Exception as e:
+            response_time = (datetime.now() - start_time).total_seconds() * 1000
+            return ComponentHealth(
+                component_name="KnowledgeGraphIngestor",
+                is_healthy=False,
+                response_time_ms=response_time,
+                error_message=str(e)
+            )
     
     async def close(self):
         """Close ingestor and clean up resources."""

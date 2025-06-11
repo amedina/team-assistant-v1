@@ -17,12 +17,18 @@ import neo4j
 from neo4j import AsyncGraphDatabase
 
 from config.configuration import Neo4jConfig
-from ..models import (
+from data_ingestion.models.models import (
     Entity, Relationship, GraphContext, ComponentHealth, 
     EntityType, BatchOperationResult
 )
-from ..ingestors.knowledge_graph_ingestor import KnowledgeGraphIngestor
-from ..retrievers.knowledge_graph_retriever import KnowledgeGraphRetriever
+from data_ingestion.ingestors.knowledge_graph_ingestor import KnowledgeGraphIngestor
+from data_ingestion.retrievers.knowledge_graph_retriever import KnowledgeGraphRetriever
+
+# Suppress Neo4j notifications and other verbose logging
+logging.getLogger('neo4j.pool').setLevel(logging.WARNING)
+logging.getLogger('neo4j.io').setLevel(logging.WARNING)
+logging.getLogger('neo4j.notifications').setLevel(logging.WARNING)
+logging.getLogger('neo4j').setLevel(logging.WARNING)
 
 logger = logging.getLogger(__name__)
 
@@ -546,13 +552,24 @@ class KnowledgeGraphManager:
     async def close(self):
         """Close manager and clean up Neo4j resources."""
         try:
-            if self.ingestor:
-                await self.ingestor.close()
-            if self.retriever:
-                await self.retriever.close()
+            import warnings
             
-            if self._driver:
-                await self._driver.close()
+            # Suppress aiohttp warnings during cleanup (even though Neo4j doesn't use aiohttp)
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=".*Unclosed client session.*")
+                warnings.filterwarnings("ignore", message=".*Unclosed connector.*")
+                
+                if self.ingestor:
+                    await self.ingestor.close()
+                if self.retriever:
+                    await self.retriever.close()
+                
+                if self._driver:
+                    await self._driver.close()
+                
+                # Small delay for any cleanup operations
+                import asyncio
+                await asyncio.sleep(0.1)
             
             self._initialized = False
             self.logger.info("KnowledgeGraphManager closed successfully")

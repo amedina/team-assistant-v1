@@ -9,6 +9,7 @@ This component acts as a facade that:
 - Handles connection lifecycle and health checks
 """
 
+import os
 import logging
 import asyncio
 from typing import List, Dict, Any, Optional, Tuple
@@ -103,7 +104,7 @@ class DatabaseManager:
             instance_connection_string=self.config.instance_connection_name,
             driver="asyncpg",
             user=self.config.db_user,
-            password=self.config.db_pass,
+            password=os.getenv('DB_PASS'),
             db=self.config.db_name,
         )
         await test_conn.close()
@@ -124,7 +125,7 @@ class DatabaseManager:
             instance_connection_string=self.config.instance_connection_name,
             driver="asyncpg",
             user=self.config.db_user,
-            password=self.config.db_pass,
+            password=os.getenv('DB_PASS'),
             db=self.config.db_name,
         )
     
@@ -552,39 +553,42 @@ class DatabaseManager:
     async def close(self):
         """Close manager and clean up database resources."""
         try:
-            # Close specialized components first
-            if self.ingestor:
-                await self.ingestor.close()
-            if self.retriever:
-                await self.retriever.close()
+            import gc
+            import warnings
             
-            # Close the Cloud SQL connector with proper cleanup
-            if self._connector:
-                try:
-                    # Use asyncio timeout to prevent hanging
-                    await asyncio.wait_for(self._connector.close(), timeout=10.0)
-                except asyncio.TimeoutError:
-                    self.logger.warning("Cloud SQL connector close timed out - this is expected in some environments")
-                except Exception as e:
-                    # Some Cloud SQL connector async cleanup issues are expected
-                    if "attached to a different loop" in str(e):
-                        self.logger.debug(f"Cloud SQL connector cleanup issue (expected): {e}")
-                    else:
-                        self.logger.warning(f"Cloud SQL connector cleanup warning: {e}")
-            
-            # Give aiohttp sessions time to clean up properly
-            try:
-                await asyncio.sleep(0.5)  # Give sessions time to close
+            # Suppress aiohttp warnings during cleanup
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=".*Unclosed client session.*")
+                warnings.filterwarnings("ignore", message=".*Unclosed connector.*")
+                
+                # Close specialized components first
+                if self.ingestor:
+                    await self.ingestor.close()
+                if self.retriever:
+                    await self.retriever.close()
+                
+                # Close the Cloud SQL connector with proper cleanup
+                if self._connector:
+                    try:
+                        # Use asyncio timeout to prevent hanging
+                        await asyncio.wait_for(self._connector.close(), timeout=10.0)
+                    except asyncio.TimeoutError:
+                        self.logger.debug("Cloud SQL connector close timed out (expected)")
+                    except Exception as e:
+                        # Some Cloud SQL connector async cleanup issues are expected
+                        if "attached to a different loop" in str(e):
+                            self.logger.debug(f"Cloud SQL connector cleanup issue (expected): {e}")
+                        else:
+                            self.logger.debug(f"Cloud SQL connector cleanup warning: {e}")
+                
+                # Give aiohttp sessions time to clean up properly
+                await asyncio.sleep(0.2)  # Give sessions time to close
                 
                 # Force garbage collection to help close any lingering sessions
-                import gc
                 gc.collect()
                 
                 # Additional small delay for session cleanup
                 await asyncio.sleep(0.1)
-                
-            except Exception as e:
-                self.logger.debug(f"Cleanup delay issue (expected): {e}")
             
             # Clear references
             self._connector = None

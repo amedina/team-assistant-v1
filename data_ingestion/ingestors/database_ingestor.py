@@ -8,6 +8,7 @@ This component handles:
 - Ingestion statistics tracking
 """
 
+import os
 import uuid
 import logging
 import asyncio
@@ -17,7 +18,7 @@ import asyncpg
 from contextlib import asynccontextmanager
 
 from config.configuration import DatabaseConfig
-from ..models import ChunkData, BatchOperationResult, IngestionStatus
+from ..models import ChunkData, BatchOperationResult, IngestionStatus, ComponentHealth
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,7 @@ class DatabaseIngestor:
             instance_connection_string=self.config.instance_connection_name,
             driver="asyncpg",
             user=self.config.db_user,
-            password=self.config.db_pass,
+            password=os.getenv('DB_PASS'),
             db=self.config.db_name,
         )
         try:
@@ -452,6 +453,46 @@ class DatabaseIngestor:
             "success_rate": (self._total_successful / self._total_processed * 100) if self._total_processed > 0 else 0.0,
             "current_batch_size": self._current_batch_size
         }
+    
+    async def health_check(self) -> ComponentHealth:
+        """
+        Check ingestor health and database connectivity.
+        
+        Returns:
+            ComponentHealth with ingestor status
+        """
+        start_time = datetime.now()
+        
+        try:
+            # Test database connectivity
+            async with self._get_connection() as conn:
+                result = await conn.fetchval("SELECT 1")
+                if result != 1:
+                    raise RuntimeError("Database connectivity test failed")
+            
+            response_time = (datetime.now() - start_time).total_seconds() * 1000
+            
+            return ComponentHealth(
+                component_name="DatabaseIngestor",
+                is_healthy=True,
+                response_time_ms=response_time,
+                additional_info={
+                    "total_processed": self._total_processed,
+                    "total_successful": self._total_successful,
+                    "total_failed": self._total_failed,
+                    "success_rate": (self._total_successful / self._total_processed * 100) if self._total_processed > 0 else 0.0,
+                    "current_batch_size": self._current_batch_size
+                }
+            )
+            
+        except Exception as e:
+            response_time = (datetime.now() - start_time).total_seconds() * 1000
+            return ComponentHealth(
+                component_name="DatabaseIngestor",
+                is_healthy=False,
+                response_time_ms=response_time,
+                error_message=str(e)
+            )
     
     async def close(self):
         """Close ingestor and clean up resources."""

@@ -8,6 +8,7 @@ This component handles:
 - Source document aggregation
 """
 
+import os
 import json
 import logging
 import asyncio
@@ -77,7 +78,7 @@ class DatabaseRetriever:
             instance_connection_string=self.config.instance_connection_name,
             driver="asyncpg",
             user=self.config.db_user,
-            password=self.config.db_pass,
+            password=os.getenv('DB_PASS'),
             db=self.config.db_name,
         )
         try:

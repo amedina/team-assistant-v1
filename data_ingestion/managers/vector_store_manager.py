@@ -391,48 +391,81 @@ class VectorStoreManager:
     async def close(self):
         """Close manager and clean up resources."""
         try:
-            # Close specialized components first
-            if self.ingestor:
-                await self.ingestor.close()
-            if self.retriever:
-                await self.retriever.close()
+            import gc
+            import warnings
             
-            # Close shared Google Cloud clients that use aiohttp sessions
-            if self._storage_client:
+            # Suppress aiohttp warnings during cleanup
+            with warnings.catch_warnings():
+                warnings.filterwarnings("ignore", message=".*Unclosed client session.*")
+                warnings.filterwarnings("ignore", message=".*Unclosed connector.*")
+                
+                # Close specialized components first
+                if self.ingestor:
+                    await self.ingestor.close()
+                if self.retriever:
+                    await self.retriever.close()
+                
+                # Close shared Google Cloud clients that use aiohttp sessions
+                if self._storage_client:
+                    try:
+                        # Google Cloud Storage client doesn't have async close, but has synchronous close
+                        if hasattr(self._storage_client, 'close'):
+                            self._storage_client.close()
+                        # Also try to close the underlying HTTP client if accessible
+                        elif hasattr(self._storage_client, '_http_internal') and hasattr(self._storage_client._http_internal, 'close'):
+                            self._storage_client._http_internal.close()
+                    except Exception as e:
+                        self.logger.debug(f"Storage client cleanup (expected): {e}")
+                
+                # Close embedding model if it has cleanup methods
+                if self._embedding_model:
+                    try:
+                        # Try to close any internal HTTP clients in the embedding model
+                        if hasattr(self._embedding_model, '_client') and hasattr(self._embedding_model._client, 'close'):
+                            self._embedding_model._client.close()
+                        elif hasattr(self._embedding_model, '_prediction_client'):
+                            # Some Vertex AI models have a prediction client
+                            if hasattr(self._embedding_model._prediction_client, 'transport') and hasattr(self._embedding_model._prediction_client.transport, '_grpc_channel'):
+                                # Close gRPC channel if available
+                                self._embedding_model._prediction_client.transport._grpc_channel.close()
+                    except Exception as e:
+                        self.logger.debug(f"Embedding model cleanup (expected): {e}")
+                
+                # Try to close any active aiohttp sessions from Google Cloud libraries
                 try:
-                    # Google Cloud Storage client doesn't have async close, but has synchronous close
-                    if hasattr(self._storage_client, 'close'):
-                        self._storage_client.close()
-                    # Also try to close the underlying HTTP client if accessible
-                    elif hasattr(self._storage_client, '_http_internal') and hasattr(self._storage_client._http_internal, 'close'):
-                        self._storage_client._http_internal.close()
+                    # Force close any active aiohttp sessions
+                    import aiohttp
+                    
+                    # Get the current event loop
+                    try:
+                        loop = asyncio.get_running_loop()
+                        
+                        # Try to close any active client sessions
+                        for obj in gc.get_objects():
+                            if isinstance(obj, aiohttp.ClientSession) and not obj.closed:
+                                try:
+                                    await obj.close()
+                                except:
+                                    pass
+                                    
+                    except RuntimeError:
+                        # No running event loop
+                        pass
+                        
+                except ImportError:
+                    # aiohttp not available
+                    pass
                 except Exception as e:
-                    self.logger.warning(f"Error closing storage client: {e}")
-            
-            # Close embedding model if it has cleanup methods
-            if self._embedding_model:
-                try:
-                    # Try to close any internal HTTP clients in the embedding model
-                    if hasattr(self._embedding_model, '_client') and hasattr(self._embedding_model._client, 'close'):
-                        self._embedding_model._client.close()
-                    elif hasattr(self._embedding_model, '_prediction_client'):
-                        # Some Vertex AI models have a prediction client
-                        if hasattr(self._embedding_model._prediction_client, 'transport') and hasattr(self._embedding_model._prediction_client.transport, '_grpc_channel'):
-                            # Close gRPC channel if available
-                            self._embedding_model._prediction_client.transport._grpc_channel.close()
-                except Exception as e:
-                    self.logger.debug(f"Embedding model cleanup (expected): {e}")
-            
-            # Give any pending async operations time to complete
-            try:
-                await asyncio.sleep(0.1)
+                    self.logger.debug(f"Aiohttp cleanup (expected): {e}")
+                
+                # Give any pending async operations time to complete
+                await asyncio.sleep(0.2)
                 
                 # Force garbage collection to help close any lingering clients
-                import gc
                 gc.collect()
                 
-            except Exception as e:
-                self.logger.debug(f"Final cleanup (expected): {e}")
+                # Additional cleanup wait
+                await asyncio.sleep(0.1)
             
             # Clear references to shared resources
             self._storage_client = None
