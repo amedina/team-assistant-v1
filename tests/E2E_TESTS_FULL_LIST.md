@@ -56,7 +56,7 @@ python -m pytest tests/e2e/test_integration.py::TestContextManager::test_context
 
 python -m pytest tests/e2e/test_integration.py::TestScenarioValidation::test_scenario_retrieval_validation -v ✅
 
-python -m pytest tests/e2e/test_integration.py::TestSystemHealth::test_comprehensive_system_health -v
+python -m pytest tests/e2e/test_integration.py::TestSystemHealth::test_comprehensive_system_health -v ✅
 
 ```
 
@@ -65,21 +65,15 @@ python -m pytest tests/e2e/test_integration.py::TestSystemHealth::test_comprehen
 ```bash
 # Individual test classes
 python -m pytest test_components.py::TestModels -v ✅
-python -m pytest test_components.py::TestTextProcessor -v
-python -m pytest test_components.py::TestConnectors -v
-python -m pytest test_components.py::TestComponentIntegration -v
+python -m pytest test_components.py::TestTextProcessor -v ✅
+python -m pytest test_components.py::TestConnectors -v ✅
+python -m pytest test_components.py::TestComponentIntegration -v ✅
 
-python -m pytest test_storage.py::TestVectorStore -v
-python -m pytest test_storage.py::TestDatabase -v
-python -m pytest test_storage.py::TestKnowledgeGraph -v
-python -m pytest test_storage.py::TestStorageIntegration -v
-python -m pytest test_storage.py::TestStoragePerformance -v
-
-python -m pytest test_integration.py::TestPipelineIntegration -v
-python -m pytest test_integration.py::TestContextManagerIntegration -v
-python -m pytest test_integration.py::TestSystemIntegration -v
-python -m pytest test_integration.py::TestDataConsistency -v
-python -m pytest test_integration.py::TestPerformanceIntegration -v
+python -m pytest test_storage.py::TestVectorStore -v ✅
+python -m pytest test_storage.py::TestDatabase -v ✅
+python -m pytest test_storage.py::TestKnowledgeGraph -v ✅
+python -m pytest test_storage.py::TestStorageIntegration -v ✅
+python -m pytest test_storage.py::TestStoragePerformance -v ✅
 ```
 
 ### **📂 COMPONENT-SPECIFIC TESTS**

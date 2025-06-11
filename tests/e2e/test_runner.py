@@ -8,12 +8,16 @@ failure reporting.
 """
 
 import asyncio
+import nest_asyncio
 import argparse
 import sys
 import logging
 from pathlib import Path
 from typing import List, Dict, Any, Optional
 from datetime import datetime
+
+# Enable nested event loops
+nest_asyncio.apply()
 
 # Add project root to path for absolute imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
