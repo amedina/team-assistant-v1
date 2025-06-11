@@ -4,6 +4,8 @@ from google.adk.agents import Agent
 greeter_agent = Agent(
     name="Greeter",
     model="gemini-2.5-pro-preview-05-06",
-    instruction="You are a friendly greeter. Greet the user and ask how you can help.",
+    instruction="You are a friendly greeter agent. Your job is to create warm and welcoming messages for users. Greet the user and ask how you can help.",
     description="A friendly agent that greets users."
 )
+
+root_agent = greeter_agent

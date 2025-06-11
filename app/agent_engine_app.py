@@ -83,7 +83,14 @@ def deploy_agent_engine_app(
     location: str,
     agent_name: str | None = None,
     requirements_file: str = ".requirements.txt",
-    extra_packages: list[str] = ["./app"],
+    extra_packages: list[str] = [
+        "./app", 
+        "./agents",
+        "./tools",
+        "./utils",
+        "./config",
+        "./data_ingestion"
+    ],
     env_vars: dict[str, str] = {},
     service_account_email: str | None = None,
 ) -> agent_engines.AgentEngine:
@@ -129,7 +136,10 @@ def deploy_agent_engine_app(
     agent_config = {
         "agent_engine": agent_engine,
         "display_name": agent_name,
-        "description": "ADK RAG agent for document retrieval and Q&A. Includes a data pipeline for ingesting and indexing documents into Vertex AI Search or Vector Search.",
+        "description": """
+            Team Assistant ADK RAG agent for document retrieval and Q&A. 
+            Includes a data pipeline for ingesting and indexing documents into Vector 
+            Search, PotgreSQL, and Neo4j.""",
         "extra_packages": extra_packages,
         "env_vars": env_vars,
     }
