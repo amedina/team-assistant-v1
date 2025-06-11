@@ -131,45 +131,45 @@ class PipelineCLI:
             print("PIPELINE HEALTH STATUS")
             print("="*60)
             
-            status_color = "✅" if health_result.overall_status else "❌"
-            print(f"Overall Status: {status_color} {'HEALTHY' if health_result.overall_status else 'UNHEALTHY'}")
+            status_color = "✅" if health_result.overall_healthy else "❌"
+            print(f"Overall Status: {status_color} {'HEALTHY' if health_result.overall_healthy else 'UNHEALTHY'}")
             print(f"Checked at: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
             
             print("\nComponent Status:")
             print("-" * 40)
             
             # Vector Search
-            vs_color = "✅" if health_result.vector_store_healthy else "❌"
-            print(f"Vector Search: {vs_color} {'healthy' if health_result.vector_store_healthy else 'unhealthy'}")
+            vs_color = "✅" if health_result.vector_store.is_healthy else "❌"
+            print(f"Vector Search: {vs_color} {'healthy' if health_result.vector_store.is_healthy else 'unhealthy'}")
             
             # Database
-            db_color = "✅" if health_result.database_healthy else "❌"
-            print(f"Database: {db_color} {'healthy' if health_result.database_healthy else 'unhealthy'}")
+            db_color = "✅" if health_result.database.is_healthy else "❌"
+            print(f"Database: {db_color} {'healthy' if health_result.database.is_healthy else 'unhealthy'}")
             
             # Knowledge Graph
-            kg_color = "✅" if health_result.knowledge_graph_healthy else "❌"
-            print(f"Knowledge Graph: {kg_color} {'healthy' if health_result.knowledge_graph_healthy else 'unhealthy'}")
+            kg_color = "✅" if health_result.knowledge_graph.is_healthy else "❌"
+            print(f"Knowledge Graph: {kg_color} {'healthy' if health_result.knowledge_graph.is_healthy else 'unhealthy'}")
             
-            # Show issues if any
-            if health_result.issues:
+            # Show issues if any (if SystemHealth has issues attribute)
+            if hasattr(health_result, 'issues') and health_result.issues:
                 print(f"\nIssues ({len(health_result.issues)}):")
                 for issue in health_result.issues:
                     print(f"  ❌ {issue}")
             
             if args.output_file:
                 health_data = {
-                    "overall_status": health_result.overall_status,
-                    "vector_store_healthy": health_result.vector_store_healthy,
-                    "database_healthy": health_result.database_healthy,
-                    "knowledge_graph_healthy": health_result.knowledge_graph_healthy,
-                    "issues": health_result.issues,
+                    "overall_status": health_result.overall_healthy,
+                    "vector_store_healthy": health_result.vector_store.is_healthy,
+                    "database_healthy": health_result.database.is_healthy,
+                    "knowledge_graph_healthy": health_result.knowledge_graph.is_healthy,
+                    "issues": getattr(health_result, 'issues', []),
                     "checked_at": datetime.now().isoformat()
                 }
                 self._save_to_file(health_data, args.output_file)
                 print(f"\nDetailed status saved to: {args.output_file}")
             
             # Exit with appropriate code
-            sys.exit(0 if health_result.overall_status else 1)
+            sys.exit(0 if health_result.overall_healthy else 1)
             
         except Exception as e:
             logger.error(f"Health check failed: {e}")
@@ -284,21 +284,21 @@ class PipelineCLI:
             print("="*60)
             
             # Overall status
-            status_icon = "✅" if health_result.overall_status else "❌"
-            print(f"Overall Status: {status_icon} {'VALID' if health_result.overall_status else 'INVALID'}")
+            status_icon = "✅" if health_result.overall_healthy else "❌"
+            print(f"Overall Status: {status_icon} {'VALID' if health_result.overall_healthy else 'INVALID'}")
             
             # Individual component checks
             print("\nComponent Validation:")
             print("-" * 40)
             
-            vs_icon = "✅" if health_result.vector_store_healthy else "❌"
-            print(f"{vs_icon} Vector Store Connection: {'PASS' if health_result.vector_store_healthy else 'FAIL'}")
+            vs_icon = "✅" if health_result.vector_store.is_healthy else "❌"
+            print(f"{vs_icon} Vector Store Connection: {'PASS' if health_result.vector_store.is_healthy else 'FAIL'}")
             
-            db_icon = "✅" if health_result.database_healthy else "❌"
-            print(f"{db_icon} Database Connection: {'PASS' if health_result.database_healthy else 'FAIL'}")
+            db_icon = "✅" if health_result.database.is_healthy else "❌"
+            print(f"{db_icon} Database Connection: {'PASS' if health_result.database.is_healthy else 'FAIL'}")
             
-            kg_icon = "✅" if health_result.knowledge_graph_healthy else "❌"
-            print(f"{kg_icon} Knowledge Graph Connection: {'PASS' if health_result.knowledge_graph_healthy else 'FAIL'}")
+            kg_icon = "✅" if health_result.knowledge_graph.is_healthy else "❌"
+            print(f"{kg_icon} Knowledge Graph Connection: {'PASS' if health_result.knowledge_graph.is_healthy else 'FAIL'}")
             
             # Configuration validation
             config_manager = get_config_manager()
@@ -313,20 +313,20 @@ class PipelineCLI:
                 for issue in config_issues:
                     print(f"  ❌ {issue}")
             
-            # Show system issues
-            if health_result.issues:
+            # Show system issues (if SystemHealth has issues attribute)
+            if hasattr(health_result, 'issues') and health_result.issues:
                 print(f"\nSystem Issues ({len(health_result.issues)}):")
                 for issue in health_result.issues:
                     print(f"  ❌ {issue}")
             
             if args.output_file:
                 validation_data = {
-                    "overall_status": health_result.overall_status and not config_issues,
-                    "vector_store_healthy": health_result.vector_store_healthy,
-                    "database_healthy": health_result.database_healthy,
-                    "knowledge_graph_healthy": health_result.knowledge_graph_healthy,
+                    "overall_status": health_result.overall_healthy and not config_issues,
+                    "vector_store_healthy": health_result.vector_store.is_healthy,
+                    "database_healthy": health_result.database.is_healthy,
+                    "knowledge_graph_healthy": health_result.knowledge_graph.is_healthy,
                     "configuration_valid": not config_issues,
-                    "system_issues": health_result.issues,
+                    "system_issues": getattr(health_result, 'issues', []),
                     "config_issues": config_issues,
                     "validated_at": datetime.now().isoformat()
                 }
@@ -334,7 +334,7 @@ class PipelineCLI:
                 print(f"\nDetailed validation results saved to: {args.output_file}")
             
             # Exit with appropriate code
-            overall_valid = health_result.overall_status and not config_issues
+            overall_valid = health_result.overall_healthy and not config_issues
             sys.exit(0 if overall_valid else 1)
             
         except Exception as e:
@@ -362,19 +362,19 @@ class PipelineCLI:
             print("="*60)
             
             # Test Vector Search
-            vs_icon = "✅" if health_result.vector_store_healthy else "❌"
+            vs_icon = "✅" if health_result.vector_store.is_healthy else "❌"
             print(f"Vector Store:")
-            print(f"  {vs_icon} Connection: {'PASS' if health_result.vector_store_healthy else 'FAIL'}")
+            print(f"  {vs_icon} Connection: {'PASS' if health_result.vector_store.is_healthy else 'FAIL'}")
             
             # Test Database
-            db_icon = "✅" if health_result.database_healthy else "❌"
+            db_icon = "✅" if health_result.database.is_healthy else "❌"
             print(f"\nDatabase:")
-            print(f"  {db_icon} Connection: {'PASS' if health_result.database_healthy else 'FAIL'}")
+            print(f"  {db_icon} Connection: {'PASS' if health_result.database.is_healthy else 'FAIL'}")
             
             # Test Knowledge Graph
-            kg_icon = "✅" if health_result.knowledge_graph_healthy else "❌"
+            kg_icon = "✅" if health_result.knowledge_graph.is_healthy else "❌"
             print(f"\nKnowledge Graph:")
-            print(f"  {kg_icon} Neo4j Connection: {'PASS' if health_result.knowledge_graph_healthy else 'FAIL'}")
+            print(f"  {kg_icon} Neo4j Connection: {'PASS' if health_result.knowledge_graph.is_healthy else 'FAIL'}")
             
             # Test Configuration
             config_manager = get_config_manager()
@@ -385,15 +385,15 @@ class PipelineCLI:
                 print(f"    ✅ {source.source_id} ({source.source_type})")
             
             # Overall result
-            print(f"\nOverall Connectivity: {'✅ PASS' if health_result.overall_status else '❌ FAIL'}")
+            print(f"\nOverall Connectivity: {'✅ PASS' if health_result.overall_healthy else '❌ FAIL'}")
             
-            # Show issues if any
-            if health_result.issues:
+            # Show issues if any (if SystemHealth has issues attribute)
+            if hasattr(health_result, 'issues') and health_result.issues:
                 print(f"\nConnection Issues:")
                 for issue in health_result.issues:
                     print(f"  ❌ {issue}")
             
-            sys.exit(0 if health_result.overall_status else 1)
+            sys.exit(0 if health_result.overall_healthy else 1)
             
         except Exception as e:
             logger.error(f"Connectivity test failed: {e}")

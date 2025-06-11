@@ -38,6 +38,3 @@ context_manager_agent = Agent(
     instruction=instruction,
     tools=[],
 )
-
-# Export as root_agent for Agent Engine compatibility
-root_agent = context_manager_agent 

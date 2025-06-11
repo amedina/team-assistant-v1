@@ -83,7 +83,12 @@ def deploy_agent_engine_app(
     location: str,
     agent_name: str | None = None,
     requirements_file: str = ".requirements.txt",
-    extra_packages: list[str] = ["./app"],
+    extra_packages: list[str] = [
+        "./app",
+        "./agents/greeter",
+        "./agents/search",
+        "./agents/context_manager",
+    ],
     env_vars: dict[str, str] = {},
 ) -> agent_engines.AgentEngine:
     """Deploy the agent engine app to Vertex AI."""

@@ -34,27 +34,57 @@ from google.adk.agents import LlmAgent
 from google.adk.tools.agent_tool import AgentTool  # Import AgentTool
 
 # Import your individual agent instances from the new 'agents' folder
+greeter_agent = None
+search_agent = None
+context_manager_agent = None
+
 try:
-    from agents.greeter.greeter_agent import greeting_agent
+    from agents.greeter.greeter_agent import greeter_agent
+    logger.info("Successfully imported greeter_agent")
 except Exception as e:
-    logger.error(f"Error importing greeting_agent: {e}")
+    logger.error(f"Error importing greeter_agent: {e}")
+    greeter_agent = None
 
 try:
     from agents.search.search_agent import search_agent
+    logger.info("Successfully imported search_agent")
 except Exception as e:
     logger.error(f"Error importing search_agent: {e}")
+    search_agent = None
 
 try:
     from agents.context_manager.context_manager_agent import context_manager_agent
+    logger.info("Successfully imported context_manager_agent")
 except Exception as e:
     logger.error(f"Error importing context_manager_agent: {e}")
+    context_manager_agent = None
 
-# Wrap the agents as tools
+# Wrap the agents as tools (only for successfully imported agents)
 logger.info("Creating agent tools...")
-greeting_tool = AgentTool(agent=greeting_agent)
-search_tool = AgentTool(agent=search_agent)
-context_manager_tool = AgentTool(agent=context_manager_agent)
-logger.info("Agent tools created successfully")
+tools = []
+
+if greeter_agent is not None:
+    greeter_tool = AgentTool(agent=greeter_agent)
+    tools.append(greeter_tool)
+    logger.info("Created greeter_tool")
+else:
+    logger.warning("Skipping greeter_tool creation due to import failure")
+
+if search_agent is not None:
+    search_tool = AgentTool(agent=search_agent)
+    tools.append(search_tool)
+    logger.info("Created search_tool")
+else:
+    logger.warning("Skipping search_tool creation due to import failure")
+
+if context_manager_agent is not None:
+    context_manager_tool = AgentTool(agent=context_manager_agent)
+    tools.append(context_manager_tool)
+    logger.info("Created context_manager_tool")
+else:
+    logger.warning("Skipping context_manager_tool creation due to import failure")
+
+logger.info(f"Agent tools created successfully. Total tools: {len(tools)}")
 
 # Define your Coordinator Agent here, using the agent tools
 logger.info("Creating coordinator agent...")
@@ -63,7 +93,7 @@ try:
         name="Coordinator",
         model="gemini-1.5-pro-latest",
         instruction=(
-            "Your name is Ron Marwood, Jr. You are a helpful AI assistant. Your primary goal is to answer user queries. "
+            "Your name is Ron Marwood. You are a helpful AI assistant. Your primary goal is to answer user queries. "
             "If the user asks a question that requires factual information or web search, "
             "use the 'search_agent' tool. "
             "If the user asks a question related to Privacy Sandbox or its related topics and APIs, " 
@@ -74,7 +104,7 @@ try:
             "For other tasks, you can respond directly."
         ),
         description="A top-level agent that coordinates requests and delegates to specialized sub-agents.",
-        tools=[greeting_tool, search_tool, context_manager_tool],  # Use tools instead of sub_agents
+        tools=tools,  # Use the dynamically created tools list
     )
     logger.info(f"Coordinator agent created successfully with {len(coordinator_agent.tools)} agent tools")
     logger.info(f"Agent tools: {[tool.name for tool in coordinator_agent.tools if hasattr(tool, 'name')]}")
