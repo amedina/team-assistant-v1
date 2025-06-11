@@ -122,7 +122,18 @@ class E2ETestRunner:
             
             vector_manager = VectorStoreManager(config.pipeline_config.vector_search)
             database_manager = DatabaseManager(config.pipeline_config.database)
-            kg_manager = KnowledgeGraphManager(config.pipeline_config.knowledge_graph)
+            # Use neo4j config if available, otherwise create minimal config
+            if hasattr(config.pipeline_config, 'neo4j') and config.pipeline_config.neo4j:
+                kg_config = config.pipeline_config.neo4j
+            else:
+                import os
+                kg_config = type('KGConfig', (), {
+                    'uri': 'neo4j://nyx.gagan.pro',
+                    'user': 'neo4j', 
+                    'password': os.getenv('NEO4J_PASSWORD'),
+                    'database': 'neo4j'
+                })()
+            kg_manager = KnowledgeGraphManager(kg_config)
             
             # Initialize managers
             init_results = await asyncio.gather(
@@ -372,18 +383,32 @@ Examples:
     )
     
     # Storage targets
+    def validate_targets(value):
+        targets = value.split(',')
+        valid_choices = ["vector", "database", "knowledge_graph"]
+        for target in targets:
+            if target not in valid_choices:
+                raise argparse.ArgumentTypeError(f"invalid choice: '{target}' (choose from {', '.join(valid_choices)})")
+        return targets
+    
     parser.add_argument(
         "--targets",
-        type=lambda x: x.split(','),
-        choices=["vector", "database", "knowledge_graph"],
+        type=validate_targets,
         help="Test specific storage targets (comma-separated)"
     )
     
     # Component selection
+    def validate_components(value):
+        components = value.split(',')
+        valid_choices = ["models", "processors", "connectors", "text_processing", "retrieval", "storage"]
+        for component in components:
+            if component not in valid_choices:
+                raise argparse.ArgumentTypeError(f"invalid choice: '{component}' (choose from {', '.join(valid_choices)})")
+        return components
+    
     parser.add_argument(
         "--components",
-        type=lambda x: x.split(','),
-        choices=["models", "processors", "connectors", "text_processing", "retrieval", "storage"],
+        type=validate_components,
         help="Test specific components (comma-separated)"
     )
     
