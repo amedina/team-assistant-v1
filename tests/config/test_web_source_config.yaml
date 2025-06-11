@@ -18,7 +18,7 @@ pipeline_config:
   instance-connection-name: "ps-agent-sandbox:us-west1:team-assistance-cm-v1"
   db_name: "postgres"
   db_user: "postgres"
-  db_pass: "AMkk2012;AMkk2012"
+  db_pass: ""
   
   # Vector search settings
   vector_search_index: "1542649998141816832"

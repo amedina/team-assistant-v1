@@ -5,7 +5,7 @@ This module defines type-safe data models for all components in the pipeline:
 managers, ingestors, and retrievers across Vector Store, Database, and Knowledge Graph systems.
 """
 
-from pydantic import BaseModel, Field, validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator, ConfigDict
 from typing import List, Dict, Any, Optional, Union, Tuple
 from datetime import datetime
 from uuid import UUID
@@ -60,17 +60,28 @@ class ChunkMetadata(BaseModel):
     file_size: Optional[int] = Field(None, ge=0)
     language: Optional[str] = Field(None, max_length=10)
     
-    @validator('total_chunks')
+    @field_validator('total_chunks')
+    @classmethod
     def total_chunks_must_be_positive(cls, v):
         if v <= 0:
             raise ValueError('total_chunks must be positive')
         return v
     
-    @validator('chunk_index')
-    def chunk_index_must_be_valid(cls, v, values):
-        if 'total_chunks' in values and v >= values['total_chunks']:
-            raise ValueError('chunk_index must be less than total_chunks')
+    @field_validator('chunk_index')
+    @classmethod
+    def chunk_index_must_be_valid(cls, v):
+        # Note: In V2, cross-field validation should use model_validator
+        # This is a simplified version for chunk_index only
+        if v < 0:
+            raise ValueError('chunk_index must be non-negative')
         return v
+    
+    @model_validator(mode='after')
+    def validate_chunk_index_vs_total(self):
+        """Validate chunk_index is less than total_chunks."""
+        if self.chunk_index >= self.total_chunks:
+            raise ValueError('chunk_index must be less than total_chunks')
+        return self
 
 
 class ChunkData(BaseModel):
@@ -86,11 +97,10 @@ class ChunkData(BaseModel):
     last_indexed_at: Optional[datetime] = None
     ingestion_status: IngestionStatus = IngestionStatus.COMPLETED
     
-    class Config:
-        json_encoders = {
-            UUID: str,
-            datetime: lambda dt: dt.isoformat()
-        }
+    model_config = ConfigDict(
+        # json_encoders is deprecated in V2, use model_serializer for custom serialization if needed
+        extra='forbid'  # Prevent extra fields
+    )
 
 
 # ====================================================================
@@ -104,7 +114,8 @@ class VectorRetrievalResult(BaseModel):
     metadata: Dict[str, Any] = Field(default_factory=dict)
     distance_metric: str = Field(default="cosine")
     
-    @validator('similarity_score')
+    @field_validator('similarity_score')
+    @classmethod
     def score_must_be_valid(cls, v):
         if not 0.0 <= v <= 1.0:
             raise ValueError('Similarity score must be between 0 and 1')
@@ -114,10 +125,11 @@ class VectorRetrievalResult(BaseModel):
 class EmbeddingData(BaseModel):
     """Data structure for embeddings with metadata."""
     chunk_uuid: UUID
-    embedding: List[float] = Field(..., min_items=1)
+    embedding: List[float] = Field(..., min_length=1)
     metadata: Dict[str, Any] = Field(default_factory=dict)
     
-    @validator('embedding')
+    @field_validator('embedding')
+    @classmethod
     def embedding_must_have_consistent_dimensions(cls, v):
         if len(v) == 0:
             raise ValueError('Embedding cannot be empty')
@@ -135,7 +147,8 @@ class ContextualChunk(BaseModel):
     context_window_size: int = Field(default=2, ge=0)
     source_document_info: Dict[str, Any] = Field(default_factory=dict)
     
-    @validator('context_chunks')
+    @field_validator('context_chunks')
+    @classmethod
     def context_chunks_must_be_reasonable(cls, v):
         if len(v) > 20:  # Reasonable limit
             raise ValueError('Too many context chunks (max 20)')
@@ -151,7 +164,8 @@ class EnrichedChunk(BaseModel):
     relevance_score: Optional[float] = Field(None, ge=0.0, le=1.0)
     ranking_position: Optional[int] = Field(None, ge=1)
     
-    @validator('vector_score', 'relevance_score')
+    @field_validator('vector_score', 'relevance_score')
+    @classmethod
     def scores_must_be_valid(cls, v):
         if v is not None and not 0.0 <= v <= 1.0:
             raise ValueError('Scores must be between 0 and 1')
@@ -172,7 +186,8 @@ class Entity(BaseModel):
     source_chunks: List[UUID] = Field(default_factory=list)
     confidence_score: Optional[float] = Field(None, ge=0.0, le=1.0)
     
-    @validator('confidence_score')
+    @field_validator('confidence_score')
+    @classmethod
     def confidence_must_be_valid(cls, v):
         if v is not None and not 0.0 <= v <= 1.0:
             raise ValueError('Confidence score must be between 0 and 1')
@@ -189,7 +204,8 @@ class Relationship(BaseModel):
     source_chunks: List[UUID] = Field(default_factory=list)
     confidence_score: Optional[float] = Field(None, ge=0.0, le=1.0)
     
-    @validator('confidence_score')
+    @field_validator('confidence_score')
+    @classmethod
     def confidence_must_be_valid(cls, v):
         if v is not None and not 0.0 <= v <= 1.0:
             raise ValueError('Confidence score must be between 0 and 1')
@@ -215,7 +231,8 @@ class GraphContext(BaseModel):
     graph_depth: int = Field(default=1, ge=0, le=5)
     total_entities_found: int = Field(default=0, ge=0)
     
-    @validator('graph_depth')
+    @field_validator('graph_depth')
+    @classmethod
     def depth_must_be_reasonable(cls, v):
         if v > 5:
             raise ValueError('Graph depth too large (max 5)')
@@ -236,7 +253,8 @@ class RetrievalContext(BaseModel):
     processing_time_ms: float = Field(default=0.0, ge=0.0)
     confidence_score: Optional[float] = Field(None, ge=0.0, le=1.0)
     
-    @validator('processing_time_ms')
+    @field_validator('processing_time_ms')
+    @classmethod
     def processing_time_must_be_reasonable(cls, v):
         if v > 60000:  # 60 seconds seems too long
             raise ValueError('Processing time seems unreasonably long')
@@ -296,13 +314,12 @@ class LLMRetrievalContext(BaseModel):
     
     def to_json_schema(self) -> Dict[str, Any]:
         """Generate JSON schema for LLM function calling."""
-        return self.schema()
+        return self.model_json_schema()
     
-    class Config:
-        json_encoders = {
-            UUID: str,
-            datetime: lambda dt: dt.isoformat()
-        }
+    model_config = ConfigDict(
+        # json_encoders is deprecated in V2, use model_serializer for custom serialization if needed
+        extra='forbid'  # Prevent extra fields
+    )
 
 
 # ====================================================================

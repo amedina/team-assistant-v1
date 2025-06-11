@@ -1,0 +1,134 @@
+tests/e2e/test_components.py::TestModels::test_model_serialization
+tests/e2e/test_components.py::TestTextProcessor::test_text_chunking
+tests/e2e/test_components.py::TestTextProcessor::test_entity_extraction
+tests/e2e/test_components.py::TestConnectors::test_github_connector_initialization
+tests/e2e/test_components.py::TestConnectors::test_drive_connector_initialization
+tests/e2e/test_components.py::TestConnectors::test_web_connector_initialization
+tests/e2e/test_components.py::TestConnectors::test_connector_document_fetching
+tests/e2e/test_components.py::TestComponentIntegration::test_processor_connector_integration
+tests/e2e/test_components.py::TestComponentIntegration::test_model_data_flow
+tests/e2e/test_integration.py::TestFullPipeline::test_end_to_end_document_flow
+tests/e2e/test_integration.py::TestContextManager::test_context_manager_four_step_flow
+tests/e2e/test_integration.py::TestScenarioValidation::test_scenario_retrieval_validation[github]
+tests/e2e/test_integration.py::TestScenarioValidation::test_scenario_retrieval_validation[drive_file]
+tests/e2e/test_integration.py::TestScenarioValidation::test_scenario_retrieval_validation[web]
+tests/e2e/test_integration.py::TestScenarioValidation::test_drive_ingestion_scenario
+tests/e2e/test_integration.py::TestSystemHealth::test_comprehensive_system_health
+tests/e2e/test_storage.py::TestVectorStore::test_vector_store_initialization
+tests/e2e/test_storage.py::TestVectorStore::test_vector_operations
+tests/e2e/test_storage.py::TestDatabase::test_database_initialization
+tests/e2e/test_storage.py::TestDatabase::test_database_operations
+tests/e2e/test_storage.py::TestKnowledgeGraph::test_knowledge_graph_initialization
+tests/e2e/test_storage.py::TestKnowledgeGraph::test_knowledge_graph_operations
+tests/e2e/test_storage.py::TestStorageIntegration::test_multi_storage_operations
+tests/e2e/test_storage.py::TestStorageIntegration::test_storage_health_checks
+tests/e2e/test_storage.py::TestStoragePerformance::test_batch_operations
+tests/integration/test_agent.py::test_agent_stream
+tests/integration/test_agent_engine_app.py::test_agent_stream_query
+tests/integration/test_agent_engine_app.py::test_agent_feedback
+tests/unit/test_dummy.py::test_dummy
+
+==================================== ERRORS ====================================
+________________ ERROR collecting tests/load_test/load_test.py _________________
+ImportError while importing test module '/Users/albertomedina/DevRel/AI/vibe-coding/ps-sanbox-agents/team-assistant/tests/load_test/load_test.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/Library/Frameworks/Python.framework/Versions/3.12/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+tests/load_test/load_test.py:20: in <module>
+    from locust import HttpUser, between, task
+E   ModuleNotFoundError: No module named 'locust'
+=============================== warnings summary ===============================
+data_ingestion/models/models.py:63
+  /Users/albertomedina/DevRel/AI/vibe-coding/ps-sanbox-agents/team-assistant/data_ingestion/models/models.py:63: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+    @validator('total_chunks')
+
+data_ingestion/models/models.py:69
+  /Users/albertomedina/DevRel/AI/vibe-coding/ps-sanbox-agents/team-assistant/data_ingestion/models/models.py:69: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+    @validator('chunk_index')
+
+.venv/lib/python3.12/site-packages/pydantic/_internal/_config.py:323
+.venv/lib/python3.12/site-packages/pydantic/_internal/_config.py:323
+  /Users/albertomedina/DevRel/AI/vibe-coding/ps-sanbox-agents/team-assistant/.venv/lib/python3.12/site-packages/pydantic/_internal/_config.py:323: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:293
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:293
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:293
+.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:293
+  /Users/albertomedina/DevRel/AI/vibe-coding/ps-sanbox-agents/team-assistant/.venv/lib/python3.12/site-packages/pydantic/_internal/_generate_schema.py:293: PydanticDeprecatedSince20: `json_encoders` is deprecated. See https://docs.pydantic.dev/2.11/concepts/serialization/#custom-serializers for alternatives. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+    warnings.warn(
+
+data_ingestion/models/models.py:107
+  /Users/albertomedina/DevRel/AI/vibe-coding/ps-sanbox-agents/team-assistant/data_ingestion/models/models.py:107: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+    @validator('similarity_score')
+
+.venv/lib/python3.12/site-packages/pydantic/fields.py:1058
+  /Users/albertomedina/DevRel/AI/vibe-coding/ps-sanbox-agents/team-assistant/.venv/lib/python3.12/site-packages/pydantic/fields.py:1058: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+    warn('`min_items` is deprecated and will be removed, use `min_length` instead', DeprecationWarning)
+
+data_ingestion/models/models.py:120
+  /Users/albertomedina/DevRel/AI/vibe-coding/ps-sanbox-agents/team-assistant/data_ingestion/models/models.py:120: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+    @validator('embedding')
+
+data_ingestion/models/models.py:138
+  /Users/albertomedina/DevRel/AI/vibe-coding/ps-sanbox-agents/team-assistant/data_ingestion/models/models.py:138: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+    @validator('context_chunks')
+
+data_ingestion/models/models.py:154
+  /Users/albertomedina/DevRel/AI/vibe-coding/ps-sanbox-agents/team-assistant/data_ingestion/models/models.py:154: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+    @validator('vector_score', 'relevance_score')
+
+data_ingestion/models/models.py:175
+  /Users/albertomedina/DevRel/AI/vibe-coding/ps-sanbox-agents/team-assistant/data_ingestion/models/models.py:175: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+    @validator('confidence_score')
+
+data_ingestion/models/models.py:192
+  /Users/albertomedina/DevRel/AI/vibe-coding/ps-sanbox-agents/team-assistant/data_ingestion/models/models.py:192: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+    @validator('confidence_score')
+
+data_ingestion/models/models.py:218
+  /Users/albertomedina/DevRel/AI/vibe-coding/ps-sanbox-agents/team-assistant/data_ingestion/models/models.py:218: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+    @validator('graph_depth')
+
+data_ingestion/models/models.py:239
+  /Users/albertomedina/DevRel/AI/vibe-coding/ps-sanbox-agents/team-assistant/data_ingestion/models/models.py:239: PydanticDeprecatedSince20: Pydantic V1 style `@validator` validators are deprecated. You should migrate to Pydantic V2 style `@field_validator` validators, see the migration guide for more details. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.11/migration/
+    @validator('processing_time_ms')
+
+.venv/lib/python3.12/site-packages/spacy/cli/_util.py:23
+  /Users/albertomedina/DevRel/AI/vibe-coding/ps-sanbox-agents/team-assistant/.venv/lib/python3.12/site-packages/spacy/cli/_util.py:23: DeprecationWarning: Importing 'parser.split_arg_string' is deprecated, it will only be available in 'shell_completion' in Click 9.0.
+    from click.parser import split_arg_string
+
+.venv/lib/python3.12/site-packages/weasel/util/config.py:8
+  /Users/albertomedina/DevRel/AI/vibe-coding/ps-sanbox-agents/team-assistant/.venv/lib/python3.12/site-packages/weasel/util/config.py:8: DeprecationWarning: Importing 'parser.split_arg_string' is deprecated, it will only be available in 'shell_completion' in Click 9.0.
+    from click.parser import split_arg_string
+
+tests/e2e/test_scenarios.py:11
+  /Users/albertomedina/DevRel/AI/vibe-coding/ps-sanbox-agents/team-assistant/tests/e2e/test_scenarios.py:11: PytestCollectionWarning: cannot collect test class 'TestPhase' because it has a __init__ constructor (from: tests/e2e/test_runner.py)
+    class TestPhase(str, Enum):
+
+tests/e2e/test_scenarios.py:11
+  /Users/albertomedina/DevRel/AI/vibe-coding/ps-sanbox-agents/team-assistant/tests/e2e/test_scenarios.py:11: PytestCollectionWarning: cannot collect test class 'TestPhase' because it has a __init__ constructor (from: tests/e2e/test_scenarios.py)
+    class TestPhase(str, Enum):
+
+tests/integration/test_full_pipeline.py:109
+  /Users/albertomedina/DevRel/AI/vibe-coding/ps-sanbox-agents/team-assistant/tests/integration/test_full_pipeline.py:109: PytestCollectionWarning: cannot collect test class 'TestStats' because it has a __init__ constructor (from: tests/integration/test_full_pipeline.py)
+    class TestStats:
+
+tests/e2e/conftest.py:32
+  /Users/albertomedina/DevRel/AI/vibe-coding/ps-sanbox-agents/team-assistant/tests/e2e/conftest.py:32: PytestUnknownMarkWarning: Unknown pytest.mark.component - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    item.add_marker(pytest.mark.component)
+
+tests/e2e/conftest.py:36
+  /Users/albertomedina/DevRel/AI/vibe-coding/ps-sanbox-agents/team-assistant/tests/e2e/conftest.py:36: PytestUnknownMarkWarning: Unknown pytest.mark.integration - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    item.add_marker(pytest.mark.integration)
+
+tests/e2e/conftest.py:34
+  /Users/albertomedina/DevRel/AI/vibe-coding/ps-sanbox-agents/team-assistant/tests/e2e/conftest.py:34: PytestUnknownMarkWarning: Unknown pytest.mark.storage - is this a typo?  You can register custom marks to avoid this warning - for details, see https://docs.pytest.org/en/stable/how-to/mark.html
+    item.add_marker(pytest.mark.storage)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+ERROR tests/load_test/load_test.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+29 tests collected, 1 error in 7.06s
