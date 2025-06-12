@@ -9,10 +9,10 @@ import logging
 from pathlib import Path
 
 from app.config.configuration import get_system_config
-from data_ingestion.pipeline.pipeline_manager import PipelineManager, SyncMode
-from data_ingestion.managers.vector_store_manager import VectorStoreManager
-from data_ingestion.managers.database_manager import DatabaseManager
-from data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
+from app.data_ingestion.pipeline.pipeline_manager import PipelineManager, SyncMode
+from app.data_ingestion.managers.vector_store_manager import VectorStoreManager
+from app.data_ingestion.managers.database_manager import DatabaseManager
+from app.data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
 
 # Configure logging
 logging.basicConfig(

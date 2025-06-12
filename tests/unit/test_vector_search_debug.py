@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import asyncio
-from data_ingestion.pipeline.pipeline_manager import PipelineManager
+from app.data_ingestion.pipeline.pipeline_manager import PipelineManager
 from app.config.configuration import SystemConfig
 
 async def debug_vector_search():

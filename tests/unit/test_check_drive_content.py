@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import asyncio
-from data_ingestion.managers.database_manager import DatabaseManager
+from app.data_ingestion.managers.database_manager import DatabaseManager
 from app.config.configuration import SystemConfig
 
 async def check_recent_drive_files():

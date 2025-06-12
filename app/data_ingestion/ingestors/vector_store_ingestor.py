@@ -17,7 +17,7 @@ from google.cloud import storage
 from google.cloud.aiplatform import MatchingEngineIndex
 
 from app.config.configuration import VectorSearchConfig
-from data_ingestion.models import EmbeddingData, BatchOperationResult
+from app.data_ingestion.models import EmbeddingData, BatchOperationResult
 
 logger = logging.getLogger(__name__)
 

@@ -23,11 +23,11 @@ from google.adk.agents import Agent
 from google.adk.tools.agent_tool import AgentTool
 from google.adk.tools import FunctionTool
 
-from data_ingestion.managers.vector_store_manager import VectorStoreManager
-from data_ingestion.managers.database_manager import DatabaseManager
-from data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
+from app.data_ingestion.managers.vector_store_manager import VectorStoreManager
+from app.data_ingestion.managers.database_manager import DatabaseManager
+from app.data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
 from app.config.configuration import get_system_config
-from data_ingestion.models.models import LLMRetrievalContext, EnrichedChunk
+from app.data_ingestion.models.models import LLMRetrievalContext, EnrichedChunk
 
 from agents.greeter.greeter_agent import greeter_agent
 from agents.search.search_agent import search_agent

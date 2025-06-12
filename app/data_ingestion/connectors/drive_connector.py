@@ -10,7 +10,7 @@ import google.auth
 import json
 
 from app.utils.secret_manager import SecretConfig
-from data_ingestion.connectors.base_connector import BaseConnector, SourceDocument, ConnectionStatus
+from app.data_ingestion.connectors.base_connector import BaseConnector, SourceDocument, ConnectionStatus
 
 class DriveConnector(BaseConnector):
     """Connector for Google Drive folders and individual files."""

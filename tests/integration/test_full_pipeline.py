@@ -28,11 +28,11 @@ from pathlib import Path
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Pipeline imports
-from data_ingestion.pipeline.pipeline_manager import PipelineManager
-from data_ingestion.managers.vector_store_manager import VectorStoreManager
-from data_ingestion.managers.database_manager import DatabaseManager
-from data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
-from data_ingestion.models import (
+from app.data_ingestion.pipeline.pipeline_manager import PipelineManager
+from app.data_ingestion.managers.vector_store_manager import VectorStoreManager
+from app.data_ingestion.managers.database_manager import DatabaseManager
+from app.data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
+from app.data_ingestion.models import (
     IngestionStatus, SourceType, VectorRetrievalResult, 
     ChunkData, Entity, ComponentHealth
 )

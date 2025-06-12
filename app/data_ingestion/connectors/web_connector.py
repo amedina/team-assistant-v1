@@ -7,7 +7,7 @@ import httpx
 from bs4 import BeautifulSoup
 import time
 
-from data_ingestion.connectors.base_connector import BaseConnector, SourceDocument, ConnectionStatus
+from app.data_ingestion.connectors.base_connector import BaseConnector, SourceDocument, ConnectionStatus
 
 
 class WebConnector(BaseConnector):

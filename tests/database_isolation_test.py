@@ -19,8 +19,8 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from app.config.configuration import get_system_config
-from data_ingestion.managers.database_manager import DatabaseManager
-from data_ingestion.models import ChunkData, IngestionStatus
+from app.data_ingestion.managers.database_manager import DatabaseManager
+from app.data_ingestion.models import ChunkData, IngestionStatus
 
 
 class DatabaseIsolationTest:

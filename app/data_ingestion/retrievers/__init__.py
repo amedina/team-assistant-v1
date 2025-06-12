@@ -10,10 +10,10 @@ These retrievers are designed to be composed at the application level for flexib
 retrieval patterns, rather than enforcing a single unified approach.
 """
 
-from data_ingestion.models import *
-from data_ingestion.retrievers.vector_store_retriever import VectorStoreRetriever
-from data_ingestion.retrievers.database_retriever import DatabaseRetriever
-from data_ingestion.retrievers.knowledge_graph_retriever import KnowledgeGraphRetriever
+from app.data_ingestion.models import *
+from app.data_ingestion.retrievers.vector_store_retriever import VectorStoreRetriever
+from app.data_ingestion.retrievers.database_retriever import DatabaseRetriever
+from app.data_ingestion.retrievers.knowledge_graph_retriever import KnowledgeGraphRetriever
 
 __all__ = [
     # Models (re-exported from data_ingestion.models)

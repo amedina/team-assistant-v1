@@ -11,7 +11,7 @@ from datetime import datetime
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from data_ingestion.processors.text_processor import TextProcessor
+from app.data_ingestion.processors.text_processor import TextProcessor
 
 async def diagnose_uuid_generation():
     """Diagnose UUID generation during text processing."""

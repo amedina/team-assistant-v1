@@ -7,7 +7,7 @@ import httpx
 
 # Import our Secret Manager utility instead of direct client
 from app.utils.secret_manager import get_secret_value
-from data_ingestion.connectors.base_connector import BaseConnector, SourceDocument, ConnectionStatus
+from app.data_ingestion.connectors.base_connector import BaseConnector, SourceDocument, ConnectionStatus
 
 class GitHubConnector(BaseConnector):
     """Connector for GitHub repositories."""

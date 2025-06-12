@@ -19,7 +19,7 @@ from dataclasses import asdict
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from app.config.configuration import get_config_manager
-from data_ingestion.pipeline.pipeline_manager import PipelineManager, SyncMode, PipelineStats
+from app.data_ingestion.pipeline.pipeline_manager import PipelineManager, SyncMode, PipelineStats
 
 # Configure logging
 logging.basicConfig(

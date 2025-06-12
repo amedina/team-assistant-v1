@@ -26,13 +26,13 @@ from tests.e2e.fixtures import (
     create_test_document, perform_system_health_check
 )
 from tests.e2e.test_scenarios import get_scenario, get_all_scenarios
-from data_ingestion.managers.vector_store_manager import VectorStoreManager
-from data_ingestion.managers.database_manager import DatabaseManager
-from data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
-from data_ingestion.processors.text_processor import TextProcessor
-from data_ingestion.connectors.github_connector import GitHubConnector
-from data_ingestion.connectors.drive_connector import DriveConnector
-from data_ingestion.connectors.web_connector import WebConnector
+from app.data_ingestion.managers.vector_store_manager import VectorStoreManager
+from app.data_ingestion.managers.database_manager import DatabaseManager
+from app.data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
+from app.data_ingestion.processors.text_processor import TextProcessor
+from app.data_ingestion.connectors.github_connector import GitHubConnector
+from app.data_ingestion.connectors.drive_connector import DriveConnector
+from app.data_ingestion.connectors.web_connector import WebConnector
 
 logger = logging.getLogger(__name__)
 

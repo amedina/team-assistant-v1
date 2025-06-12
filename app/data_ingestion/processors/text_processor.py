@@ -20,7 +20,7 @@ import spacy
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from nltk.tokenize import sent_tokenize
 
-from data_ingestion.models import Entity, Relationship, EntityType
+from app.data_ingestion.models import Entity, Relationship, EntityType
 
 logger = logging.getLogger(__name__)
 

@@ -17,12 +17,12 @@ import neo4j
 from neo4j import AsyncGraphDatabase
 
 from app.config.configuration import Neo4jConfig
-from data_ingestion.models.models import (
+from app.data_ingestion.models.models import (
     Entity, Relationship, GraphContext, ComponentHealth, 
     EntityType, BatchOperationResult
 )
-from data_ingestion.ingestors.knowledge_graph_ingestor import KnowledgeGraphIngestor
-from data_ingestion.retrievers.knowledge_graph_retriever import KnowledgeGraphRetriever
+from app.data_ingestion.ingestors.knowledge_graph_ingestor import KnowledgeGraphIngestor
+from app.data_ingestion.retrievers.knowledge_graph_retriever import KnowledgeGraphRetriever
 
 # Suppress Neo4j notifications and other verbose logging
 logging.getLogger('neo4j.pool').setLevel(logging.WARNING)

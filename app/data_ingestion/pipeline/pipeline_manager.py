@@ -11,12 +11,12 @@ from datetime import datetime
 from enum import Enum
 
 from app.config.configuration import SystemConfig, get_system_config
-from data_ingestion.managers.vector_store_manager import VectorStoreManager
-from data_ingestion.managers.database_manager import DatabaseManager
-from data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
-from data_ingestion.processors.text_processor import TextProcessor
-from data_ingestion.connectors.base_connector import BaseConnector, SourceDocument
-from data_ingestion.models import (
+from app.data_ingestion.managers.vector_store_manager import VectorStoreManager
+from app.data_ingestion.managers.database_manager import DatabaseManager
+from app.data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
+from app.data_ingestion.processors.text_processor import TextProcessor
+from app.data_ingestion.connectors.base_connector import BaseConnector, SourceDocument
+from app.data_ingestion.models import (
     EmbeddingData, ChunkData, Entity, Relationship, 
     ComponentHealth, SystemHealth, IngestionStatus
 )
@@ -290,7 +290,7 @@ class PipelineManager:
         """Create appropriate connector for the data source."""
         try:
             if source_config.source_type == "github_repo":
-                from data_ingestion.connectors.github_connector import GitHubConnector
+                from app.data_ingestion.connectors.github_connector import GitHubConnector
                 return GitHubConnector(source_config.__dict__)
             elif source_config.source_type == "drive_folder":
                 from data_ingestion.connectors.drive_connector import DriveConnector
