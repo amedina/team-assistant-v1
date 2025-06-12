@@ -6,7 +6,7 @@ from typing import Dict, List, Any, Optional, Iterator, AsyncIterator
 import httpx
 
 # Import our Secret Manager utility instead of direct client
-from utils.secret_manager import get_secret_value
+from app.utils.secret_manager import get_secret_value
 from data_ingestion.connectors.base_connector import BaseConnector, SourceDocument, ConnectionStatus
 
 class GitHubConnector(BaseConnector):

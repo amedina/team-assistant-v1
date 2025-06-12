@@ -30,9 +30,9 @@ from vertexai import agent_engines
 from vertexai.preview.reasoning_engines import AdkApp
 
 from app.agent import root_agent
-from utils.gcs import create_bucket_if_not_exists
-from utils.tracing import CloudTraceLoggingSpanExporter
-from utils.typing import Feedback
+from app.utils.gcs import create_bucket_if_not_exists
+from app.utils.tracing import CloudTraceLoggingSpanExporter
+from app.utils.typing import Feedback
 
 
 class AgentEngineApp(AdkApp):

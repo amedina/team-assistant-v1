@@ -9,7 +9,7 @@ from google.auth.credentials import Credentials
 import google.auth
 import json
 
-from utils.secret_manager import SecretConfig
+from app.utils.secret_manager import SecretConfig
 from data_ingestion.connectors.base_connector import BaseConnector, SourceDocument, ConnectionStatus
 
 class DriveConnector(BaseConnector):
