@@ -20,6 +20,7 @@ import os
 from datetime import datetime
 
 from google.adk.agents import Agent
+from google.adk.tools.agent_tool import AgentTool
 from google.adk.tools import FunctionTool
 
 from data_ingestion.managers.vector_store_manager import VectorStoreManager
@@ -28,7 +29,15 @@ from data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManage
 from config.configuration import get_system_config
 from data_ingestion.models.models import LLMRetrievalContext, EnrichedChunk
 
+from agents.greeter.greeter_agent import greeter_agent
+from agents.search.search_agent import search_agent
+
+
 logger = logging.getLogger(__name__)
+
+# Wrap the agents as tools
+search_tool = AgentTool(agent=search_agent)
+greeter_tool = AgentTool(agent=greeter_agent)
 
 
 class ContextManager:
@@ -476,6 +485,7 @@ context_query_tool = FunctionTool(process_context_query)
 instruction = """You are a helpful AI assistant specializing in Google's Privacy Sandbox and related privacy technologies. 
 
 Your expertise covers:
+- Online Privacy
 - Privacy Sandbox APIs and implementation
 - PSAT (Privacy Sandbox Analysis Tool) 
 - Web privacy technologies and standards
@@ -484,7 +494,9 @@ Your expertise covers:
 
 When users ask questions related to these topics, use your process_context_query tool to provide detailed, accurate, and contextual responses based on your knowledge base.
 
-For questions outside your specialization, you can provide general assistance but should mention if the topic is outside your Privacy Sandbox expertise.
+For questions outside your specialization, which can be answered by a web search, use your [search_tool].
+
+If the user just wants to chat, use your greeter tool to warmly engage with them.
 
 Maintain a warm, helpful, and professional tone. Always cite your sources when providing specific technical information."""
 
@@ -493,7 +505,7 @@ context_manager_agent = Agent(
     name="context_manager_agent",
     model="gemini-2.5-pro-preview-05-06",
     instruction=instruction,
-    tools=[context_query_tool],
+    tools=[context_query_tool, search_tool, greeter_tool],
 )
 
 # Export as root_agent for Agent Engine compatibility
