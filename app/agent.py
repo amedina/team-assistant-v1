@@ -35,17 +35,17 @@ from google.adk.tools.agent_tool import AgentTool  # Import AgentTool
 
 # Import your individual agent instances from the new 'agents' folder
 try:
-    from agents.greeter.greeter_agent import greeter_agent
+    from app.agents.greeter.greeter_agent import greeter_agent
 except Exception as e:
     logger.error(f"Error importing greeter_agent: {e}")
 
 try:
-    from agents.search.search_agent import search_agent
+    from app.agents.search.search_agent import search_agent
 except Exception as e:
     logger.error(f"Error importing search_agent: {e}")
 
 try:
-    from agents.context_manager.context_manager_agent import context_manager_agent
+    from app.agents.context_manager.context_manager_agent import context_manager_agent
 except Exception as e:
     logger.error(f"Error importing context_manager_agent: {e}")
 

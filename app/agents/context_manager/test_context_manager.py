@@ -12,7 +12,7 @@ import os
 # Add the project root to the path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from agents.context_manager.context_manager_agent import get_context_manager, context_manager_agent
+from .context_manager_agent import get_context_manager, context_manager_agent
 
 # Configure logging
 logging.basicConfig(
