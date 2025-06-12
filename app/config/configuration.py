@@ -242,11 +242,7 @@ class ConfigurationManager:
     
     def _find_config_file(self) -> str:
         """Find configuration file in common locations."""
-        possible_paths = [
-            "data_sources_config.yaml",
-            "config/data_sources_config.yaml",
-            os.path.join(os.getcwd(), "data_sources_config.yaml")
-        ]
+        possible_paths = ["app/config/data_sources_config.yaml"]
         
         for path in possible_paths:
             if os.path.exists(path):
