@@ -18,7 +18,7 @@ import sys
 # Add project root to path for absolute imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from config.configuration import get_system_config, SystemConfig
+from app.config.configuration import get_system_config, SystemConfig
 
 logger = logging.getLogger(__name__)
 
@@ -74,7 +74,7 @@ def test_results() -> E2ETestResults:
 @pytest.fixture(scope="session")
 def text_processor():
     """Initialize and provide text processor."""
-    from data_ingestion.processors.text_processor import TextProcessor
+    from app.data_ingestion.processors.text_processor import TextProcessor
     return TextProcessor(
         chunk_size=800,
         chunk_overlap=100,
@@ -290,21 +290,21 @@ def setup_test_logging(verbose: bool = False):
 # Helper functions for async operations
 async def init_vector_store_manager(config):
     """Initialize vector store manager."""
-    from data_ingestion.managers.vector_store_manager import VectorStoreManager
+    from app.data_ingestion.managers.vector_store_manager import VectorStoreManager
     manager = VectorStoreManager(config.pipeline_config.vector_search)
     await manager.initialize()
     return manager
 
 async def init_database_manager(config):
     """Initialize database manager."""
-    from data_ingestion.managers.database_manager import DatabaseManager
+    from app.data_ingestion.managers.database_manager import DatabaseManager
     manager = DatabaseManager(config.pipeline_config.database)
     await manager.initialize()
     return manager
 
 async def init_knowledge_graph_manager(config):
     """Initialize knowledge graph manager."""
-    from data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
+    from app.data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
     # Use neo4j config if available, otherwise create minimal config
     if hasattr(config.pipeline_config, 'neo4j') and config.pipeline_config.neo4j:
         kg_config = config.pipeline_config.neo4j
@@ -458,7 +458,7 @@ async def perform_system_health_check(vector_manager, database_manager, knowledg
     Returns:
         SystemHealth object with component statuses
     """
-    from data_ingestion.models import ComponentHealth, SystemHealth
+    from app.data_ingestion.models import ComponentHealth, SystemHealth
     
     # Perform health checks in parallel
     health_checks = await asyncio.gather(

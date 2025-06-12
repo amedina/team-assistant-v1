@@ -30,7 +30,7 @@ from tests.e2e.test_scenarios import (
     TestPhase, ComponentType, StorageTarget,
     get_scenarios_for_phase, get_scenarios_for_components, get_scenarios_for_storage_targets
 )
-from config.configuration import get_system_config
+from app.config.configuration import get_system_config
 
 # Import test modules
 import pytest

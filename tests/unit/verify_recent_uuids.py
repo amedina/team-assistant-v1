@@ -11,8 +11,8 @@ from datetime import datetime, timedelta
 # Add project root to path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from data_ingestion.pipeline.pipeline_manager import PipelineManager
-from config.configuration import SystemConfig
+from app.data_ingestion.pipeline.pipeline_manager import PipelineManager
+from app.config.configuration import SystemConfig
 
 async def verify_recent_uuids():
     """Verify that recent chunks have proper UUIDs and check vector indexing."""

@@ -30,9 +30,9 @@ from vertexai import agent_engines
 from vertexai.preview.reasoning_engines import AdkApp
 
 from app.agent import root_agent
-from utils.gcs import create_bucket_if_not_exists
-from utils.tracing import CloudTraceLoggingSpanExporter
-from utils.typing import Feedback
+from app.utils.gcs import create_bucket_if_not_exists
+from app.utils.tracing import CloudTraceLoggingSpanExporter
+from app.utils.typing import Feedback
 
 
 class AgentEngineApp(AdkApp):
@@ -83,14 +83,7 @@ def deploy_agent_engine_app(
     location: str,
     agent_name: str | None = None,
     requirements_file: str = ".requirements.txt",
-    extra_packages: list[str] = [
-        "./app", 
-        "./agents",
-        "./tools",
-        "./utils",
-        "./config",
-        "./data_ingestion"
-    ],
+    extra_packages: list[str] = ["./app"],
     env_vars: dict[str, str] = {},
     service_account_email: str | None = None,
 ) -> agent_engines.AgentEngine:

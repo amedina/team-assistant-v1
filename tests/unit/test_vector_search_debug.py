@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import asyncio
-from data_ingestion.pipeline.pipeline_manager import PipelineManager
-from config.configuration import SystemConfig
+from app.data_ingestion.pipeline.pipeline_manager import PipelineManager
+from app.config.configuration import SystemConfig
 
 async def debug_vector_search():
     """Debug why vector search returns wrong content for Drive file query."""

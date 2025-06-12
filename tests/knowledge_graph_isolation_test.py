@@ -18,9 +18,9 @@ from pathlib import Path
 # Add the project root to Python path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config.configuration import get_system_config
-from data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
-from data_ingestion.models import Entity, Relationship, EntityType
+from app.config.configuration import get_system_config
+from app.data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
+from app.data_ingestion.models import Entity, Relationship, EntityType
 from uuid import UUID
 
 

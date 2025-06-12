@@ -18,9 +18,9 @@ from pathlib import Path
 # Add the project root to Python path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from config.configuration import get_system_config
-from data_ingestion.managers.database_manager import DatabaseManager
-from data_ingestion.models import ChunkData, IngestionStatus
+from app.config.configuration import get_system_config
+from app.data_ingestion.managers.database_manager import DatabaseManager
+from app.data_ingestion.models import ChunkData, IngestionStatus
 
 
 class DatabaseIsolationTest:

@@ -8,11 +8,11 @@ import asyncio
 import logging
 from pathlib import Path
 
-from config.configuration import get_system_config
-from data_ingestion.pipeline.pipeline_manager import PipelineManager, SyncMode
-from data_ingestion.managers.vector_store_manager import VectorStoreManager
-from data_ingestion.managers.database_manager import DatabaseManager
-from data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
+from app.config.configuration import get_system_config
+from app.data_ingestion.pipeline.pipeline_manager import PipelineManager, SyncMode
+from app.data_ingestion.managers.vector_store_manager import VectorStoreManager
+from app.data_ingestion.managers.database_manager import DatabaseManager
+from app.data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
 
 # Configure logging
 logging.basicConfig(
@@ -32,7 +32,7 @@ async def main():
         config = get_system_config()
         
         # Validate configuration
-        from config.configuration import get_config_manager
+        from app.config.configuration import get_config_manager
         config_manager = get_config_manager()
         issues = config_manager.validate_config()
         
@@ -164,7 +164,7 @@ async def demonstrate_individual_components():
     logger.info("Demonstrating individual component usage...")
     
     # Example: Using TextProcessor standalone
-    from data_ingestion.processors.text_processor import TextProcessor
+    from app.data_ingestion.processors.text_processor import TextProcessor
     
     processor = TextProcessor(chunk_size=500, chunk_overlap=50)
     
