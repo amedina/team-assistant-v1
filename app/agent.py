@@ -61,7 +61,7 @@ logger.info("Creating coordinator agent...")
 try:
     coordinator_agent = LlmAgent(
         name="Coordinator",
-        model="gemini-1.5-pro-latest",
+        model="gemini-2.5-pro-preview-05-06",
         instruction=(
             "Your name is Ron Marwood. You are a helpful AI assistant. Your primary goal is to answer user queries. "
             "If the user asks a question that requires factual information or web search, "

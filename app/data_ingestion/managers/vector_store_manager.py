@@ -18,12 +18,12 @@ from google.cloud import aiplatform
 from google.cloud.aiplatform import MatchingEngineIndex, MatchingEngineIndexEndpoint
 
 from app.config.configuration import VectorSearchConfig
-from ..models import (
+from app.data_ingestion.models import (
     VectorRetrievalResult, EmbeddingData, BatchOperationResult, 
     ComponentHealth, SystemHealth
 )
-from ..ingestors.vector_store_ingestor import VectorStoreIngestor
-from ..retrievers.vector_store_retriever import VectorStoreRetriever
+from app.data_ingestion.ingestors.vector_store_ingestor import VectorStoreIngestor
+from app.data_ingestion.retrievers.vector_store_retriever import VectorStoreRetriever
 
 logger = logging.getLogger(__name__)
 

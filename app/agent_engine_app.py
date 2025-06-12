@@ -113,6 +113,7 @@ def deploy_agent_engine_app(
             staging_bucket=staging_bucket,
             credentials=target_credentials
         )
+        logging.ERROR(f"Using service account: {service_account_email}")
     else:
         vertexai.init(project=project, location=location, staging_bucket=staging_bucket)
 
@@ -120,7 +121,7 @@ def deploy_agent_engine_app(
     with open(requirements_file) as f:
         requirements = f.read().strip().split("\n")
 
-    agent_engine = AgentEngineApp(agent=root_agent)
+    agent_engine = AgentEngineApp(agent=root_agent, enable_tracing=True)
 
     # Set worker parallelism to 1
     env_vars["NUM_WORKERS"] = "1"

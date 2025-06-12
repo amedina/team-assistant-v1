@@ -3,14 +3,14 @@ version: "1.0"
 project_config:
   # Google Cloud Project and Location
   google_cloud_project: "ps-agent-sandbox"
-  google_cloud_location: "us-west1" 
+  google_cloud_location: "us-central1" 
 # Pipeline configuration - TEMPLATE FILE (replace with actual values)
 
 pipeline_config:
   # 🔥 Vertex AI vector index and gs bucket
-  vector_search_index: "1542649998141816832"
-  vector_search_endpoint: "projects/267266051209/locations/us-west1/indexEndpoints/4024168577195048960"  
-  vector_search_bucket: "gs://gs-team-assistant-cm-v2"
+  vector_search_index: "6766484717286981632"
+  vector_search_endpoint: "projects/267266051209/locations/us-central1/indexEndpoints/3341602753787985920"  
+  vector_search_bucket: "gs://gs-team-assistant-v3"
   chunk_size: 800
   chunk_overlap: 100
   embedding_model: "text-embedding-005"
@@ -90,7 +90,7 @@ data_sources:
     source_type: "drive_folder"
     access_level: "global"
     description: "DevRel Assistance Google Drive folder"
-    enabled: true
+    enabled: false
     config:
       folder_id: "1ptFZLZApmOZw6NWpmxoEGEAKwBaBhIcm"
       include_subfolders: true
@@ -117,8 +117,8 @@ data_sources:
       urls:
         - "https://privacysandbox.google.com/"
       crawl_mode: "same_domain"  # single_page, same_domain, or sitemap
-      max_pages: 25
-      max_depth: 2
+      max_pages: 1000
+      max_depth: 10
       delay_between_requests: 1.0
       follow_links: true
       timeout: 30
@@ -133,7 +133,7 @@ data_sources:
         - ".cookie-banner"
       allowed_content_types:
         - "text/html"
-      user_agent: "DevRel-Assistant/1.0 (Privacy Sandbox Documentation Crawler)"
+      user_agent: "DevRel-Team-Assistant/0.1 (Privacy Sandbox Documentation Crawler)"
 
   - source_id: "web-dev-blog"
     source_type: "web_source"
@@ -162,7 +162,7 @@ data_sources:
     source_type: "web_source"
     access_level: "global"
     description: "Single web page example"
-    enabled: true  # Set to true when ready to use
+    enabled: false  # Set to true when ready to use
     config:
       urls:
         - "https://developer.chrome.com/docs/privacy-sandbox/overview/"
@@ -182,7 +182,7 @@ data_sources:
     source_type: drive_file
     access_level: "global"
     description: Test individual Google Drive file
-    enabled: true
+    enabled: false
     config:
       file_types:
       - google_doc
