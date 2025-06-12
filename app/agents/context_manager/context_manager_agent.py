@@ -29,8 +29,8 @@ from app.data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphMa
 from app.config.configuration import get_system_config
 from app.data_ingestion.models.models import LLMRetrievalContext, EnrichedChunk
 
-from agents.greeter.greeter_agent import greeter_agent
-from agents.search.search_agent import search_agent
+from app.agents.greeter.greeter_agent import greeter_agent
+from app.agents.search.search_agent import search_agent
 
 
 logger = logging.getLogger(__name__)
@@ -260,7 +260,7 @@ class ContextManager:
                 
                 if chunk_metadata:
                     # Create EnrichedChunk (simplified for now)
-                    from data_ingestion.models.models import ChunkData, SourceType, IngestionStatus
+                    from app.data_ingestion.models.models import ChunkData, SourceType, IngestionStatus
                     from uuid import UUID
                     from datetime import datetime
                     
@@ -502,7 +502,7 @@ Maintain a warm, helpful, and professional tone. Always cite your sources when p
 
 # Create the agent with proper RAG-focused tools  
 context_manager_agent = Agent(
-    name="context_manager_agent",
+    name="ContextManager",
     model="gemini-2.5-pro-preview-05-06",
     instruction=instruction,
     tools=[context_query_tool, search_tool, greeter_tool],
