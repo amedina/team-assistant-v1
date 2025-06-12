@@ -293,13 +293,13 @@ class PipelineManager:
                 from app.data_ingestion.connectors.github_connector import GitHubConnector
                 return GitHubConnector(source_config.__dict__)
             elif source_config.source_type == "drive_folder":
-                from data_ingestion.connectors.drive_connector import DriveConnector
+                from app.data_ingestion.connectors.drive_connector import DriveConnector
                 return DriveConnector(source_config.__dict__)
             elif source_config.source_type == "drive_file":
-                from data_ingestion.connectors.drive_connector import DriveConnector
+                from app.data_ingestion.connectors.drive_connector import DriveConnector
                 return DriveConnector(source_config.__dict__)
             elif source_config.source_type == "web_source":
-                from data_ingestion.connectors.web_connector import WebConnector
+                from app.data_ingestion.connectors.web_connector import WebConnector
                 return WebConnector(source_config.__dict__)
             else:
                 self.logger.error(f"Unknown source type: {source_config.source_type}")
