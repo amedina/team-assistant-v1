@@ -54,7 +54,7 @@ from data_ingestion.models import (
     IngestionStatus, SourceType, VectorRetrievalResult, 
     ChunkData, Entity, ComponentHealth, EntityType
 )
-from config.configuration import SystemConfig
+from app.config.configuration import SystemConfig
 
 # Configure logging
 logging.basicConfig(

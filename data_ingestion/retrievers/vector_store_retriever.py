@@ -15,7 +15,7 @@ from datetime import datetime
 from google.cloud.aiplatform import MatchingEngineIndex, MatchingEngineIndexEndpoint
 from uuid import UUID
 
-from config.configuration import VectorSearchConfig
+from app.config.configuration import VectorSearchConfig
 from ..models import VectorRetrievalResult, ComponentHealth
 
 logger = logging.getLogger(__name__)

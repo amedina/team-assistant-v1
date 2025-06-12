@@ -15,7 +15,7 @@ from typing import List, Dict, Any, Optional, Tuple, Set
 from datetime import datetime
 import neo4j
 
-from config.configuration import Neo4jConfig
+from app.config.configuration import Neo4jConfig
 from ..models import Entity, Relationship, BatchOperationResult, ComponentHealth
 
 logger = logging.getLogger(__name__)

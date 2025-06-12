@@ -17,7 +17,7 @@ from google.cloud import storage
 from google.cloud import aiplatform
 from google.cloud.aiplatform import MatchingEngineIndex, MatchingEngineIndexEndpoint
 
-from config.configuration import VectorSearchConfig
+from app.config.configuration import VectorSearchConfig
 from ..models import (
     VectorRetrievalResult, EmbeddingData, BatchOperationResult, 
     ComponentHealth, SystemHealth

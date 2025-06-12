@@ -15,7 +15,7 @@ from datetime import datetime
 import neo4j
 from uuid import UUID
 
-from config.configuration import Neo4jConfig
+from app.config.configuration import Neo4jConfig
 from ..models import Entity, Relationship, GraphContext, ComponentHealth, EntityType
 
 logger = logging.getLogger(__name__)

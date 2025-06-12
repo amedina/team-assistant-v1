@@ -26,7 +26,7 @@ from google.adk.tools import FunctionTool
 from data_ingestion.managers.vector_store_manager import VectorStoreManager
 from data_ingestion.managers.database_manager import DatabaseManager
 from data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
-from config.configuration import get_system_config
+from app.config.configuration import get_system_config
 from data_ingestion.models.models import LLMRetrievalContext, EnrichedChunk
 
 from agents.greeter.greeter_agent import greeter_agent

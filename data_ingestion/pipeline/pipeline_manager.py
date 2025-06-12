@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
-from config.configuration import SystemConfig, get_system_config
+from app.config.configuration import SystemConfig, get_system_config
 from data_ingestion.managers.vector_store_manager import VectorStoreManager
 from data_ingestion.managers.database_manager import DatabaseManager
 from data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager

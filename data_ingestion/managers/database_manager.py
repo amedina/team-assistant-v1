@@ -17,7 +17,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from google.cloud.sql.connector import Connector
 
-from config.configuration import DatabaseConfig
+from app.config.configuration import DatabaseConfig
 from ..models import (
     ChunkData, ContextualChunk, EnrichedChunk, BatchOperationResult,
     ComponentHealth, IngestionStatus

@@ -17,7 +17,7 @@ from datetime import datetime
 from contextlib import asynccontextmanager
 from uuid import UUID
 
-from config.configuration import DatabaseConfig
+from app.config.configuration import DatabaseConfig
 from ..models import ChunkData, ContextualChunk, EnrichedChunk, ComponentHealth, SourceType
 
 logger = logging.getLogger(__name__)

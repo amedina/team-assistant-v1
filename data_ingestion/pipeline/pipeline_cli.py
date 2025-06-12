@@ -18,7 +18,7 @@ from dataclasses import asdict
 # Add the project root to the Python path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
-from config.configuration import get_config_manager
+from app.config.configuration import get_config_manager
 from data_ingestion.pipeline.pipeline_manager import PipelineManager, SyncMode, PipelineStats
 
 # Configure logging

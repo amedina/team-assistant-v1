@@ -17,7 +17,7 @@ from datetime import datetime
 import asyncpg
 from contextlib import asynccontextmanager
 
-from config.configuration import DatabaseConfig
+from app.config.configuration import DatabaseConfig
 from ..models import ChunkData, BatchOperationResult, IngestionStatus, ComponentHealth
 
 logger = logging.getLogger(__name__)

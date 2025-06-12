@@ -18,7 +18,7 @@ import sys
 # Add project root to path for absolute imports
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
-from config.configuration import get_system_config, SystemConfig
+from app.config.configuration import get_system_config, SystemConfig
 
 logger = logging.getLogger(__name__)
 

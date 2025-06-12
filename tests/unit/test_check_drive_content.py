@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import asyncio
 from data_ingestion.managers.database_manager import DatabaseManager
-from config.configuration import SystemConfig
+from app.config.configuration import SystemConfig
 
 async def check_recent_drive_files():
     config = SystemConfig.from_yaml('config/data_sources_config.yaml')

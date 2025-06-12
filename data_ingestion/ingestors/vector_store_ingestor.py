@@ -16,7 +16,7 @@ from datetime import datetime
 from google.cloud import storage
 from google.cloud.aiplatform import MatchingEngineIndex
 
-from config.configuration import VectorSearchConfig
+from app.config.configuration import VectorSearchConfig
 from data_ingestion.models import EmbeddingData, BatchOperationResult
 
 logger = logging.getLogger(__name__)

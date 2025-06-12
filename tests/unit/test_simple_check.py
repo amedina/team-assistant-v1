@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import asyncio
 from data_ingestion.managers.database_manager import DatabaseManager
-from config.configuration import SystemConfig
+from app.config.configuration import SystemConfig
 
 async def check_drive_content():
     """Check what content was actually ingested from the Drive file."""

@@ -16,7 +16,7 @@ from datetime import datetime
 import neo4j
 from neo4j import AsyncGraphDatabase
 
-from config.configuration import Neo4jConfig
+from app.config.configuration import Neo4jConfig
 from data_ingestion.models.models import (
     Entity, Relationship, GraphContext, ComponentHealth, 
     EntityType, BatchOperationResult

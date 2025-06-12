@@ -83,14 +83,7 @@ def deploy_agent_engine_app(
     location: str,
     agent_name: str | None = None,
     requirements_file: str = ".requirements.txt",
-    extra_packages: list[str] = [
-        "./app", 
-        "./agents",
-        "./tools",
-        "./utils",
-        "./config",
-        "./data_ingestion"
-    ],
+    extra_packages: list[str] = ["./app"],
     env_vars: dict[str, str] = {},
     service_account_email: str | None = None,
 ) -> agent_engines.AgentEngine:
