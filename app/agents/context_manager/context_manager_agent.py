@@ -380,6 +380,7 @@ class ContextManager:
         try:
             # Convert context to prompt-ready format
             context_text = context.to_prompt_context(max_chunks=8)
+            logger.error(f"Context text: {context_text}")
             
             # Build response based on available context
             if context.relevant_chunks:
@@ -414,6 +415,8 @@ class ContextManager:
                 
                 # Add summary
                 total_sources = context.total_sources
+                logger.error(f"Total sources: {total_sources}")  
+
                 response_parts.append(f"This information comes from {total_sources} source{'s' if total_sources != 1 else ''} "
                                     f"in my Privacy Sandbox knowledge base.")
                 
@@ -468,6 +471,7 @@ async def process_context_query(query: str) -> str:
     Returns:
         Detailed, contextual response based on ingested knowledge
     """
+    logger.info(f"Processing query: {query}")
     try:
         context_manager = await get_context_manager()
         return await context_manager.process_query(query)
@@ -492,11 +496,9 @@ Your expertise covers:
 - Google's privacy initiatives and documentation
 - Technical implementation guides and best practices
 
-When users ask questions related to these topics, use your process_context_query tool to provide detailed, accurate, and contextual responses based on your knowledge base.
+When users ask questions related to these topics, use your context_query_tool tool to provide detailed, accurate, and contextual responses based on your knowledge base.
 
-For questions outside your specialization, which can be answered by a web search, use your [search_tool].
-
-If the user just wants to chat, use your greeter tool to warmly engage with them.
+For questions outside your specialization, communicate clearly that you have no information about that topic.
 
 Maintain a warm, helpful, and professional tone. Always cite your sources when providing specific technical information."""
 
@@ -505,7 +507,7 @@ context_manager_agent = Agent(
     name="ContextManager",
     model="gemini-2.5-pro-preview-05-06",
     instruction=instruction,
-    tools=[context_query_tool, search_tool, greeter_tool],
+    tools=[context_query_tool],
 )
 
 # Export as root_agent for Agent Engine compatibility
