@@ -1,0 +1,15 @@
+{
+  "start_time": "2025-06-13T12:19:22.265045",
+  "end_time": "2025-06-13T13:38:35.661529",
+  "total_documents": 822,
+  "successful_documents": 822,
+  "failed_documents": 0,
+  "total_chunks": 6291,
+  "successful_chunks": 6291,
+  "errors": [],
+  "processing_time": 4753.396484,
+  "sources_processed": [],
+  "total_entities": 35526,
+  "total_relationships": 31847,
+  "processing_times": {}
+}

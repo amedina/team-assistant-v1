@@ -3,15 +3,15 @@ version: "1.0"
 project_config:
   # Google Cloud Project and Location
   google_cloud_project: "ps-agent-sandbox"
-  google_cloud_location: "us-west1"
+  google_cloud_location: "us-central1"
 # Pipeline configuration - TEMPLATE FILE (replace with actual values)
 
 pipeline_config:
   # 🔥 Vertex AI vector index and gs bucket
   #
-  vector_search_index: "1542649998141816832"
-  vector_search_endpoint: "projects/267266051209/locations/us-west1/indexEndpoints/4024168577195048960"  
-  vector_search_bucket: "gs://gs-team-assistant-cm-v2"
+  vector_search_index: "6766484717286981632"
+  vector_search_endpoint: "projects/267266051209/locations/us-central1/indexEndpoints/5025949014424551424"
+  vector_search_bucket: "gs://gs-team-assistant-v3"
   chunk_size: 800
   chunk_overlap: 100
   embedding_model: "text-embedding-005"

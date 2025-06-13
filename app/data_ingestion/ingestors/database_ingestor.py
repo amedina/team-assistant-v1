@@ -85,7 +85,7 @@ class DatabaseIngestor:
             instance_connection_string=self.config.instance_connection_name,
             driver="asyncpg",
             user=self.config.db_user,
-            password=os.getenv(db_pass),
+            password=db_pass,
             db=self.config.db_name,
         )
         try:

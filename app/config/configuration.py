@@ -163,7 +163,10 @@ class SystemConfig:
         db_config = None
         if all(key in pipeline_data for key in ['instance-connection-name', 'db_name', 'db_user']):
             # Use secret resolution if config_manager is available
-            db_pass = config_manager.resolve_secret('db_pass')
+            if config_manager:
+                db_pass = config_manager.resolve_secret('db_pass')
+            else:
+                db_pass = os.environ.get('DB_PASS', '')
             db_config = DatabaseConfig(
                 instance_connection_name=pipeline_data['instance-connection-name'],
                 db_name=pipeline_data['db_name'],
@@ -175,7 +178,10 @@ class SystemConfig:
         neo4j_config = None
         if all(key in pipeline_data for key in ['neo4j_uri', 'neo4j_user']):
             # Use secret resolution if config_manager is available
-            neo4j_password = config_manager.resolve_secret('neo4j_password')
+            if config_manager:
+                neo4j_password = config_manager.resolve_secret('neo4j_password')
+            else:
+                neo4j_password = os.environ.get('NEO4J_PASSWORD', '')
             neo4j_config = Neo4jConfig(
                 uri=pipeline_data['neo4j_uri'],
                 user=pipeline_data['neo4j_user'],
@@ -291,6 +297,7 @@ class ConfigurationManager:
         
         for path in possible_paths:
             if os.path.exists(path):
+                print(f"Found config file at {path}")
                 return path
         
         raise FileNotFoundError("Could not find data_sources_config.yaml file")
@@ -299,7 +306,7 @@ class ConfigurationManager:
     def config(self) -> SystemConfig:
         """Get system configuration, loading if necessary."""
         if self._config is None:
-            self._config = SystemConfig.from_yaml(self.config_path)
+            self._config = SystemConfig.from_yaml(self.config_path, self)
         return self._config
     
     def reload_config(self) -> SystemConfig:
