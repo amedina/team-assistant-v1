@@ -134,7 +134,7 @@ context_query_tool = FunctionTool(process_context_query)
 ```python
 context_manager_agent = Agent(
     name="context_manager_agent",
-    model="gemini-2.5-pro-preview-05-06",
+    model="gemini-2.0-flash-lite-001",
     instruction=specialized_privacy_sandbox_instruction,
     tools=[context_query_tool],
 )
