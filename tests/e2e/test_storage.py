@@ -33,7 +33,7 @@ class TestVectorStore:
         start_time = datetime.now()
         
         try:
-            from data_ingestion.managers.vector_store_manager import VectorStoreManager
+            from app.data_ingestion.managers.vector_store_manager import VectorStoreManager
             
             manager = VectorStoreManager(system_config.pipeline_config.vector_search)
             success = await manager.initialize()
@@ -68,15 +68,15 @@ class TestVectorStore:
         start_time = datetime.now()
         
         try:
-            from data_ingestion.managers.vector_store_manager import VectorStoreManager
-            from data_ingestion.models import ChunkData
+            from app.data_ingestion.managers.vector_store_manager import VectorStoreManager
+            from app.data_ingestion.models import ChunkData
             
             manager = VectorStoreManager(system_config.pipeline_config.vector_search)
             await manager.initialize()
             
             # Create test data
             import uuid
-            from data_ingestion.models import SourceType
+            from app.data_ingestion.models import SourceType
             
             chunk_uuid = uuid.uuid4()
             chunk = ChunkData(
@@ -175,7 +175,7 @@ class TestDatabase:
         start_time = datetime.now()
         
         try:
-            from data_ingestion.managers.database_manager import DatabaseManager
+            from app.data_ingestion.managers.database_manager import DatabaseManager
             
             manager = DatabaseManager(system_config.pipeline_config.database)
             success = await manager.initialize()
@@ -212,15 +212,15 @@ class TestDatabase:
         start_time = datetime.now()
         
         try:
-            from data_ingestion.managers.database_manager import DatabaseManager
-            from data_ingestion.models import ChunkData
+            from app.data_ingestion.managers.database_manager import DatabaseManager
+            from app.data_ingestion.models import ChunkData
             
             manager = DatabaseManager(system_config.pipeline_config.database)
             await manager.initialize()
             
             # Create test chunk data
             import uuid
-            from data_ingestion.models import SourceType
+            from app.data_ingestion.models import SourceType
             
             chunk_uuid = uuid.uuid4()
             chunk = ChunkData(
@@ -285,7 +285,7 @@ class TestKnowledgeGraph:
         start_time = datetime.now()
         
         try:
-            from data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
+            from app.data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
             
             # Use neo4j config if available, otherwise create minimal config
             if hasattr(system_config.pipeline_config, 'knowledge_graph'):
@@ -334,8 +334,8 @@ class TestKnowledgeGraph:
         start_time = datetime.now()
         
         try:
-            from data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
-            from data_ingestion.models import Entity, Relationship
+            from app.data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
+            from app.data_ingestion.models import Entity, Relationship
             
             # Use neo4j config if available, otherwise create minimal config
             if hasattr(system_config.pipeline_config, 'knowledge_graph'):
@@ -352,7 +352,7 @@ class TestKnowledgeGraph:
             await manager.initialize()
             
             # Create test entities
-            from data_ingestion.models import EntityType
+            from app.data_ingestion.models import EntityType
             import uuid
             
             entity1 = Entity(
@@ -429,9 +429,9 @@ class TestStorageIntegration:
         start_time = datetime.now()
         
         try:
-            from data_ingestion.managers.vector_store_manager import VectorStoreManager
-            from data_ingestion.managers.database_manager import DatabaseManager
-            from data_ingestion.models import ChunkData
+            from app.data_ingestion.managers.vector_store_manager import VectorStoreManager
+            from app.data_ingestion.managers.database_manager import DatabaseManager
+            from app.data_ingestion.models import ChunkData
             
             # Initialize managers
             vector_manager = VectorStoreManager(system_config.pipeline_config.vector_search)
@@ -442,7 +442,7 @@ class TestStorageIntegration:
             
             # Create test data
             import uuid
-            from data_ingestion.models import SourceType
+            from app.data_ingestion.models import SourceType
             
             chunk_uuid = uuid.uuid4()
             chunk = ChunkData(
@@ -500,9 +500,9 @@ class TestStorageIntegration:
         start_time = datetime.now()
         
         try:
-            from data_ingestion.managers.vector_store_manager import VectorStoreManager
-            from data_ingestion.managers.database_manager import DatabaseManager
-            from data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
+            from app.data_ingestion.managers.vector_store_manager import VectorStoreManager
+            from app.data_ingestion.managers.database_manager import DatabaseManager
+            from app.data_ingestion.managers.knowledge_graph_manager import KnowledgeGraphManager
             
             # Initialize managers
             vector_manager = VectorStoreManager(system_config.pipeline_config.vector_search)
@@ -568,15 +568,15 @@ class TestStoragePerformance:
         start_time = datetime.now()
         
         try:
-            from data_ingestion.managers.vector_store_manager import VectorStoreManager
-            from data_ingestion.models import ChunkData
+            from app.data_ingestion.managers.vector_store_manager import VectorStoreManager
+            from app.data_ingestion.models import ChunkData
             
             manager = VectorStoreManager(system_config.pipeline_config.vector_search)
             await manager.initialize()
             
             # Create multiple test chunks
             import uuid
-            from data_ingestion.models import SourceType
+            from app.data_ingestion.models import SourceType
             
             chunks = []
             texts = []

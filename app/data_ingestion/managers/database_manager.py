@@ -17,13 +17,13 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from google.cloud.sql.connector import Connector
 
-from app.config.configuration import DatabaseConfig
-from ..models import (
+from app.config.configuration import DatabaseConfig, get_config_manager
+from app.data_ingestion.models import (
     ChunkData, ContextualChunk, EnrichedChunk, BatchOperationResult,
     ComponentHealth, IngestionStatus
 )
-from ..ingestors.database_ingestor import DatabaseIngestor
-from ..retrievers.database_retriever import DatabaseRetriever
+from app.data_ingestion.ingestors.database_ingestor import DatabaseIngestor
+from app.data_ingestion.retrievers.database_retriever import DatabaseRetriever
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +45,8 @@ class DatabaseManager:
         
         # Shared resources
         self._connector: Optional[Connector] = None
-        
+        self._config_manager = get_config_manager()
+
         # Specialized components (initialized after shared resources)
         self.ingestor: Optional[DatabaseIngestor] = None
         self.retriever: Optional[DatabaseRetriever] = None
@@ -100,11 +101,12 @@ class DatabaseManager:
         self._connector = Connector()
         
         # Test connection
+        db_pass = self._config_manager.resolve_secret('db_pass')
         test_conn = await self._connector.connect_async(
             instance_connection_string=self.config.instance_connection_name,
             driver="asyncpg",
             user=self.config.db_user,
-            password=os.getenv('DB_PASS'),
+            password=db_pass,
             db=self.config.db_name,
         )
         await test_conn.close()
@@ -120,12 +122,13 @@ class DatabaseManager:
         """Create a new database connection using Cloud SQL Connector."""
         if self._connector is None:
             raise RuntimeError("Database manager not initialized. Call initialize() first.")
-        
+
+        db_pass = self._config_manager.resolve_secret('db_pass')
         return await self._connector.connect_async(
             instance_connection_string=self.config.instance_connection_name,
             driver="asyncpg",
             user=self.config.db_user,
-            password=os.getenv('DB_PASS'),
+            password=db_pass,
             db=self.config.db_name,
         )
     

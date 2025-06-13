@@ -38,13 +38,9 @@ class PipelineCLI:
         """Initialize the pipeline manager."""
         try:
             # Set the config file path if it's not the default
-            if config_file != "config/data_sources_config.yaml":
-                config_manager = get_config_manager(config_file)
-                config = config_manager.config
-            else:
-                from config.configuration import get_system_config
-                config = get_system_config()
-            
+            config_manager = get_config_manager(config_file)
+            config = config_manager.config
+
             self.pipeline_manager = PipelineManager(config)
             logger.info("Pipeline manager initialized successfully")
         except Exception as e:

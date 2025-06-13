@@ -3,7 +3,7 @@ version: "1.0"
 project_config:
   # Google Cloud Project and Location
   google_cloud_project: "ps-agent-sandbox"
-  google_cloud_location: "us-central1" 
+  google_cloud_location: "us-west1"
 # Pipeline configuration - TEMPLATE FILE (replace with actual values)
 
 pipeline_config:
@@ -21,13 +21,13 @@ pipeline_config:
   instance-connection-name: "ps-agent-sandbox:us-west1:team-assistance-cm-v1"
   db_name: "postgres"
   db_user: "postgres"
-  db_pass: ""
+  # Note: db_pass is retrieved from Secret Manager or DB_PASS environment variable
 
   # Neo4j configuration
   neo4j_uri: "neo4j+s://21c5ec22.databases.neo4j.io"
   neo4j_user: "neo4j"
-  neo4j_password: ""
-  batch_size: 100
+  # Note: neo4j_password is retrieved from Secret Manager or NEO4J_PASSWORD environment variable
+  neo4j_batch_size: 100
 
   # Knowledge Graph (optional)
   enable_knowledge_graph: true

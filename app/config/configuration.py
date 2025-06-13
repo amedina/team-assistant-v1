@@ -10,6 +10,9 @@ from typing import Dict, List, Any, Optional
 from dataclasses import dataclass, field
 from pathlib import Path
 
+# Import SecretManager for secure secret resolution
+from app.utils.secret_manager import get_secret_manager, SecretConfig
+
 # Try to load .env file if available
 try:
     from dotenv import load_dotenv
@@ -117,7 +120,7 @@ class SystemConfig:
     data_sources: List[DataSourceConfig]
     
     @classmethod
-    def from_yaml(cls, config_path: str) -> 'SystemConfig':
+    def from_yaml(cls, config_path: str, config_manager: Optional['ConfigurationManager'] = None) -> 'SystemConfig':
         """Load configuration from YAML file."""
         config_path = Path(config_path)
         if not config_path.exists():
@@ -128,14 +131,14 @@ class SystemConfig:
                 data = yaml.safe_load(f)
             
             logger.info(f"Loaded configuration from {config_path}")
-            return cls._from_dict(data)
+            return cls._from_dict(data, config_manager)
             
         except Exception as e:
             logger.error(f"Failed to load configuration from {config_path}: {e}")
             raise
     
     @classmethod
-    def _from_dict(cls, data: Dict[str, Any]) -> 'SystemConfig':
+    def _from_dict(cls, data: Dict[str, Any], config_manager: Optional['ConfigurationManager'] = None) -> 'SystemConfig':
         """Create SystemConfig from dictionary."""
         # Parse project config
         project_data = data.get('project_config', {})
@@ -158,19 +161,21 @@ class SystemConfig:
         
         # Create database config
         db_config = None
-        if all(key in pipeline_data for key in ['instance-connection-name', 'db_name', 'db_user', 'db_pass']):
+        if all(key in pipeline_data for key in ['instance-connection-name', 'db_name', 'db_user']):
+            # Use secret resolution if config_manager is available
+            db_pass = config_manager.resolve_secret('db_pass')
             db_config = DatabaseConfig(
                 instance_connection_name=pipeline_data['instance-connection-name'],
                 db_name=pipeline_data['db_name'],
                 db_user=pipeline_data['db_user'],
-                db_pass=pipeline_data['db_pass']
+                db_pass=db_pass
             )
         
         # Create Neo4j config
         neo4j_config = None
         if all(key in pipeline_data for key in ['neo4j_uri', 'neo4j_user']):
-            # Try to get password from environment variable first, then YAML
-            neo4j_password = os.environ.get('NEO4J_PASSWORD') or pipeline_data.get('neo4j_password', '')
+            # Use secret resolution if config_manager is available
+            neo4j_password = config_manager.resolve_secret('neo4j_password')
             neo4j_config = Neo4jConfig(
                 uri=pipeline_data['neo4j_uri'],
                 user=pipeline_data['neo4j_user'],
@@ -234,12 +239,52 @@ class SystemConfig:
         return [source for source in self.data_sources if source.source_type == source_type]
 
 class ConfigurationManager:
-    """Manager for system configuration."""
+    """Manager for system configuration with secret resolution support."""
     
-    def __init__(self, config_path: Optional[str] = None):
+    def __init__(self, config_path: Optional[str] = None, secret_config: Optional[SecretConfig] = None):
         self.config_path = config_path or self._find_config_file()
+        self._secret_manager = get_secret_manager(secret_config)
         self._config: Optional[SystemConfig] = None
     
+    def resolve_secret(self,
+                      secret_key: str,
+                      env_key: Optional[str] = None,
+                      default_value: str = '') -> str:
+        """
+        Resolve secret value with secure fallback chain:
+        1. Secret Manager (primary)
+        2. Environment Variable (fallback)
+        3. Default Value (if provided)
+
+        Args:
+            secret_key: Key to look up in Secret Manager
+            env_key: Environment variable key (defaults to secret_key.upper())
+            default_value: Default value if all sources fail
+
+        Returns:
+            Resolved secret value
+        """
+        # 1. Try Secret Manager first
+        try:
+            return self._secret_manager.get_secret(secret_key)
+        except Exception as e:
+            logger.debug(f"Could not retrieve '{secret_key}' from Secret Manager: {e}")
+
+        # 2. Try environment variable
+        env_key = env_key or secret_key.upper().replace('-', '_')
+        env_value = os.environ.get(env_key)
+        if env_value:
+            logger.info(f"Using environment variable '{env_key}' for secret '{secret_key}'")
+            return env_value
+
+        # 3. Use default value
+        if default_value:
+            logger.warning(f"Using default value for secret '{secret_key}'")
+            return default_value
+
+        # If no default provided, raise an error
+        raise ValueError(f"Could not resolve secret '{secret_key}' from any source (Secret Manager, {env_key})")
+
     def _find_config_file(self) -> str:
         """Find configuration file in common locations."""
         possible_paths = ["app/config/data_sources_config.yaml"]
@@ -329,11 +374,11 @@ class ConfigurationManager:
 # Global configuration manager instance
 _config_manager = None
 
-def get_config_manager(config_path: Optional[str] = None) -> ConfigurationManager:
+def get_config_manager(config_path: Optional[str] = None, secret_config: Optional[SecretConfig] = None) -> ConfigurationManager:
     """Get global configuration manager instance."""
     global _config_manager
     if _config_manager is None:
-        _config_manager = ConfigurationManager(config_path)
+        _config_manager = ConfigurationManager(config_path, secret_config)
     return _config_manager
 
 def get_system_config() -> SystemConfig:
