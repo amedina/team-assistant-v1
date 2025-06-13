@@ -17,7 +17,7 @@ from datetime import datetime
 import asyncpg
 from contextlib import asynccontextmanager
 
-from app.config.configuration import DatabaseConfig
+from app.config.configuration import DatabaseConfig, get_config_manager
 from ..models import ChunkData, BatchOperationResult, IngestionStatus, ComponentHealth
 
 logger = logging.getLogger(__name__)
@@ -48,6 +48,7 @@ class DatabaseIngestor:
         self.config = config
         self.connector = connector
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
+        self._config_manager = get_config_manager()
         
         # Ingestion statistics
         self._total_processed = 0
@@ -79,11 +80,22 @@ class DatabaseIngestor:
     @asynccontextmanager
     async def _get_connection(self):
         """Get database connection using shared connector."""
+        # Get database password using secure resolution (Secret Manager -> Environment Variable -> Default)
+        try:
+            db_secrets = self._config_manager.resolve_database_secrets()
+            db_password = db_secrets['db_pass']
+        except Exception as e:
+            self.logger.error(f"Failed to resolve database password in ingestor: {e}")
+            # Final fallback to direct environment variable for backward compatibility
+            db_password = os.getenv('DB_PASS', '')
+            if not db_password:
+                raise ValueError("Could not resolve database password from any source")
+        
         connection = await self.connector.connect_async(
             instance_connection_string=self.config.instance_connection_name,
             driver="asyncpg",
             user=self.config.db_user,
-            password=os.getenv('DB_PASS'),
+            password=db_password,
             db=self.config.db_name,
         )
         try:

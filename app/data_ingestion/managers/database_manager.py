@@ -17,13 +17,13 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 from google.cloud.sql.connector import Connector
 
-from app.config.configuration import DatabaseConfig
-from ..models import (
+from app.config.configuration import DatabaseConfig, get_config_manager
+from app.data_ingestion.models import (
     ChunkData, ContextualChunk, EnrichedChunk, BatchOperationResult,
     ComponentHealth, IngestionStatus
 )
-from ..ingestors.database_ingestor import DatabaseIngestor
-from ..retrievers.database_retriever import DatabaseRetriever
+from app.data_ingestion.ingestors.database_ingestor import DatabaseIngestor
+from app.data_ingestion.retrievers.database_retriever import DatabaseRetriever
 
 logger = logging.getLogger(__name__)
 
@@ -45,6 +45,7 @@ class DatabaseManager:
         
         # Shared resources
         self._connector: Optional[Connector] = None
+        self._config_manager = get_config_manager()
         
         # Specialized components (initialized after shared resources)
         self.ingestor: Optional[DatabaseIngestor] = None
@@ -99,12 +100,26 @@ class DatabaseManager:
         # Initialize Cloud SQL Connector
         self._connector = Connector()
         
+        # Get database password using secure resolution (Secret Manager -> Environment Variable -> Default)
+        try:
+            db_secrets = self._config_manager.resolve_database_secrets()
+            db_password = db_secrets['db_pass']
+            self.logger.info("Successfully resolved database password from secure sources")
+        except Exception as e:
+            self.logger.error(f"Failed to resolve database password: {e}")
+            # Final fallback to direct environment variable for backward compatibility
+            db_password = os.getenv('DB_PASS', '')
+            if db_password:
+                self.logger.warning("Using direct environment variable fallback for database password")
+            else:
+                raise ValueError("Could not resolve database password from any source")
+        
         # Test connection
         test_conn = await self._connector.connect_async(
             instance_connection_string=self.config.instance_connection_name,
             driver="asyncpg",
             user=self.config.db_user,
-            password=os.getenv('DB_PASS'),
+            password=db_password,
             db=self.config.db_name,
         )
         await test_conn.close()
@@ -121,11 +136,22 @@ class DatabaseManager:
         if self._connector is None:
             raise RuntimeError("Database manager not initialized. Call initialize() first.")
         
+        # Get database password using secure resolution (Secret Manager -> Environment Variable -> Default)
+        try:
+            db_secrets = self._config_manager.resolve_database_secrets()
+            db_password = db_secrets['db_pass']
+        except Exception as e:
+            self.logger.error(f"Failed to resolve database password in connection: {e}")
+            # Final fallback to direct environment variable for backward compatibility
+            db_password = os.getenv('DB_PASS', '')
+            if not db_password:
+                raise ValueError("Could not resolve database password from any source")
+        
         return await self._connector.connect_async(
             instance_connection_string=self.config.instance_connection_name,
             driver="asyncpg",
             user=self.config.db_user,
-            password=os.getenv('DB_PASS'),
+            password=db_password,
             db=self.config.db_name,
         )
     
