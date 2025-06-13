@@ -498,14 +498,12 @@ Your expertise covers:
 
 When users ask questions related to these topics, use your context_query_tool tool to provide detailed, accurate, and contextual responses based on your knowledge base.
 
-For questions outside your specialization, communicate clearly that you have no information about that topic.
-
 Maintain a warm, helpful, and professional tone. Always cite your sources when providing specific technical information."""
 
 # Create the agent with proper RAG-focused tools  
 context_manager_agent = Agent(
     name="ContextManager",
-    model="gemini-2.5-pro-preview-05-06",
+    model="gemini-2.5-flash-preview-05-20",
     instruction=instruction,
     tools=[context_query_tool],
 )
