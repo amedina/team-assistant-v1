@@ -273,7 +273,7 @@ class E2ETestRunner:
         
         try:
             # Load configuration
-            config_path = "config/data_sources_config.yaml"
+            config_path = "app/config/data_sources_config.yaml"
             if not os.path.exists(config_path):
                 raise FileNotFoundError(f"Configuration file not found: {config_path}")
             
@@ -1613,7 +1613,7 @@ Test Scenarios:
     )
     parser.add_argument(
         "--config",
-        default="config/data_sources_config.yaml",
+        default="app/config/data_sources_config.yaml",
         help="Path to configuration file (default: config/data_sources_config.yaml)"
     )
     

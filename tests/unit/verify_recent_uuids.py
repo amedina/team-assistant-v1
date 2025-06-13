@@ -20,7 +20,7 @@ async def verify_recent_uuids():
     print("="*70)
     
     # Initialize pipeline
-    config = SystemConfig.from_yaml("config/data_sources_config.yaml")
+    config = SystemConfig.from_yaml("app/config/data_sources_config.yaml")
     pipeline = PipelineManager(config)
     await pipeline.initialize()
     

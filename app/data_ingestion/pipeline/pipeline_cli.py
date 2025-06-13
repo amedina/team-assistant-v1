@@ -34,7 +34,7 @@ class PipelineCLI:
     def __init__(self):
         self.pipeline_manager: Optional[PipelineManager] = None
     
-    def _init_pipeline_manager(self, config_file: str = "config/data_sources_config.yaml") -> None:
+    def _init_pipeline_manager(self, config_file: str = "app/config/data_sources_config.yaml") -> None:
         """Initialize the pipeline manager."""
         try:
             # Set the config file path if it's not the default
@@ -526,7 +526,7 @@ Examples:
     # Global options
     parser.add_argument(
         "--config", 
-        default="config/data_sources_config.yaml",
+        default="app/config/data_sources_config.yaml",
         help="Path to configuration file (default: config/data_sources_config.yaml)"
     )
     parser.add_argument(

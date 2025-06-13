@@ -260,7 +260,7 @@ class EnhancedE2ETestRunner:
         
         try:
             # Load configuration
-            config_path = "config/data_sources_config.yaml"
+            config_path = "app/config/data_sources_config.yaml"
             if not os.path.exists(config_path):
                 raise FileNotFoundError(f"Configuration file not found: {config_path}")
             
