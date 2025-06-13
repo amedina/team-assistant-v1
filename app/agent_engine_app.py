@@ -32,7 +32,7 @@ from vertexai.preview.reasoning_engines import AdkApp
 from app.agent import root_agent
 from app.utils.gcs import create_bucket_if_not_exists
 from app.utils.tracing import CloudTraceLoggingSpanExporter
-from app.utils.typing import Feedback
+from app.utils.sp_typing import Feedback
 
 
 class AgentEngineApp(AdkApp):
@@ -113,7 +113,7 @@ def deploy_agent_engine_app(
             staging_bucket=staging_bucket,
             credentials=target_credentials
         )
-        logging.ERROR(f"Using service account: {service_account_email}")
+        logging.error(f"Using service account: {service_account_email}")
     else:
         vertexai.init(project=project, location=location, staging_bucket=staging_bucket)
 

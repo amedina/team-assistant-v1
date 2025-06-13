@@ -37,8 +37,6 @@ logger = logging.getLogger(__name__)
 
 # Wrap the agents as tools
 search_tool = AgentTool(agent=search_agent)
-greeter_tool = AgentTool(agent=greeter_agent)
-
 
 class ContextManager:
     """

@@ -17,8 +17,8 @@ from datetime import datetime
 from contextlib import asynccontextmanager
 from uuid import UUID
 
-from app.config.configuration import DatabaseConfig
-from ..models import ChunkData, ContextualChunk, EnrichedChunk, ComponentHealth, SourceType
+from app.config.configuration import DatabaseConfig, get_config_manager
+from app.data_ingestion.models import ChunkData, ContextualChunk, EnrichedChunk, ComponentHealth, SourceType
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,8 @@ class DatabaseRetriever:
         self.config = config
         self.connector = connector
         self.logger = logging.getLogger(f"{__name__}.{self.__class__.__name__}")
-        
+        self._config_manager = get_config_manager()
+
         # Retrieval statistics
         self._total_queries = 0
         self._total_chunks_retrieved = 0
@@ -74,11 +75,12 @@ class DatabaseRetriever:
     @asynccontextmanager
     async def _get_connection(self):
         """Get database connection using shared connector."""
+        db_pass = self._config_manager.resolve_secret('db_pass')
         connection = await self.connector.connect_async(
             instance_connection_string=self.config.instance_connection_name,
             driver="asyncpg",
             user=self.config.db_user,
-            password=os.getenv('DB_PASS'),
+            password=db_pass,
             db=self.config.db_name,
         )
         try:
