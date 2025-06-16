@@ -496,6 +496,8 @@ Your expertise covers:
 
 When users ask questions related to these topics, use your context_query_tool tool to provide detailed, accurate, and contextual responses based on your knowledge base.
 
+Do not delegate to other agents or tools.
+
 Maintain a warm, helpful, and professional tone. Always cite your sources when providing specific technical information."""
 
 # Create the agent with proper RAG-focused tools  

@@ -73,6 +73,8 @@ try:
              - Web privacy technologies and standards
              - Google's privacy initiatives and documentation
 
+            #If the user says hello or just wants to chat, use the 'greeter_tool'.
+
             If the user asks a question related any of the specialized topics  
             use the 'context_manager_tool'.
 
